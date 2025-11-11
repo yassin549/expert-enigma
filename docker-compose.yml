@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: topcoin-postgres
+    environment:
+      POSTGRES_USER: topcoin
+      POSTGRES_PASSWORD: topcoin_dev_password
+      POSTGRES_DB: topcoin
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U topcoin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - topcoin-network
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: topcoin-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - topcoin-network
+
+  # FastAPI Backend
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: topcoin-api
+    environment:
+      DATABASE_URL: postgresql://topcoin:topcoin_dev_password@postgres:5432/topcoin
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: dev_secret_key_change_in_production
+      JWT_ALGORITHM: HS256
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY}
+      NOWPAYMENTS_PUBLIC_KEY: ${NOWPAYMENTS_PUBLIC_KEY}
+      NOWPAYMENTS_IPN_SECRET: ${NOWPAYMENTS_IPN_SECRET}
+      ENVIRONMENT: development
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+      - api_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - topcoin-network
+
+  # Celery Worker
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: topcoin-worker
+    environment:
+      DATABASE_URL: postgresql://topcoin:topcoin_dev_password@postgres:5432/topcoin
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      NOWPAYMENTS_API_KEY: ${NOWPAYMENTS_API_KEY}
+      ENVIRONMENT: development
+    volumes:
+      - ./apps/worker:/app/worker
+    depends_on:
+      - postgres
+      - redis
+    command: celery -A worker.celery_app worker --loglevel=info
+    networks:
+      - topcoin-network
+
+  # Next.js Frontend
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: development
+    container_name: topcoin-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_WS_URL: ws://localhost:8000
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    command: npm run dev
+    networks:
+      - topcoin-network
+
+  # PgAdmin (Database Management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: topcoin-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@topcoin.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - topcoin-network
+
+  # Nginx (Reverse Proxy - Production only)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: topcoin-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+  #     - ./nginx/ssl:/etc/nginx/ssl
+  #   depends_on:
+  #     - web
+  #     - api
+  #   networks:
+  #     - topcoin-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  api_uploads:
+    driver: local
+
+networks:
+  topcoin-network:
+    driver: bridge
