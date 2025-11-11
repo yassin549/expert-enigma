@@ -15,6 +15,12 @@ class PositionStatus(str, Enum):
     CLOSED = "closed"
 
 
+class PositionSide(str, Enum):
+    """Position side"""
+    BUY = "buy"  # Long position
+    SELL = "sell"  # Short position
+
+
 class Position(SQLModel, table=True):
     """
     Open simulated trading positions

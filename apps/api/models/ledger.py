@@ -19,6 +19,10 @@ class EntryType(str, Enum):
     FEE = "fee"  # Trading or processing fee
     BONUS = "bonus"  # Promotional bonus
     CORRECTION = "correction"  # Error correction
+    # AI Investment Plan Entries
+    INVESTMENT_ALLOCATION = "investment_allocation"  # Allocation to AI plan
+    INVESTMENT_RETURN = "investment_return"  # Return from AI plan
+    INVESTMENT_WITHDRAWAL = "investment_withdrawal"  # Withdrawal from AI plan
 
 
 class LedgerEntry(SQLModel, table=True):

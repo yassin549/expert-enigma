@@ -285,8 +285,31 @@ def seed_database():
         for plan in ai_plans:
             session.add(plan)
         
+        session.flush()  # Get plan IDs
+        
         # ====================
-        # 8. Create Demo Deposit
+        # 8. Create Demo User Investment
+        # ====================
+        print("Creating demo user investment...")
+        demo_investment = UserInvestment(
+            user_id=demo_user.id,
+            plan_id=ai_plans[1].id,  # Balanced AI Plan
+            allocated_amount=Decimal("2500.00"),
+            current_value=Decimal("2750.00"),  # +10% return
+            return_pct=Decimal("10.00"),
+            unrealized_pnl=Decimal("250.00"),
+            is_active=True,
+            started_at=datetime.utcnow() - timedelta(days=5),
+            last_updated_at=datetime.utcnow() - timedelta(hours=1),
+        )
+        session.add(demo_investment)
+        
+        # Update plan statistics
+        ai_plans[1].total_invested += Decimal("2500.00")
+        ai_plans[1].active_investors += 1
+        
+        # ====================
+        # 9. Create Demo Deposit
         # ====================
         print("Creating demo deposit...")
         demo_deposit = Deposit(
@@ -398,6 +421,7 @@ def seed_database():
         print(f"  - Instruments: 5 (BTC/USD, ETH/USD, EUR/USD, Gold, SPX)")
         print(f"  - Candles: 30 days of hourly data (3,600 total)")
         print(f"  - AI plans: 3 (Conservative, Balanced, Aggressive)")
+        print(f"  - Demo investment: $2,500 in Balanced AI Plan (+10% return)")
         print(f"  - Ledger entries: 2 (deposit + admin adjustment)")
         print(f"  - Admin adjustments: 1 (initial allocation)")
         

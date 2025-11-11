@@ -1,74 +1,43 @@
-# Multi-stage build for Next.js frontend
-FROM node:18-alpine AS base
+# Railway-optimized Next.js Dockerfile
+FROM node:18-alpine
 
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# Set working directory
 WORKDIR /app
-
-# Copy package files
-COPY package.json package-lock.json* ./
 
 # Install dependencies
-RUN npm ci
+RUN apk add --no-cache libc6-compat
 
-# Development stage
-FROM base AS development
-WORKDIR /app
+# Copy package.json
+COPY package.json ./
 
-# Copy node_modules from deps
-COPY --from=deps /app/node_modules ./node_modules
+# Install dependencies
+RUN npm install
 
 # Copy source code
 COPY . .
 
-# Expose port
-EXPOSE 3000
+# Set environment variables
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Development command
-CMD ["npm", "run", "dev"]
-
-# Build stage
-FROM base AS builder
-WORKDIR /app
-
-# Copy dependencies and source
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Set environment to production
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV production
-
-# Build application
+# Build the application
 RUN npm run build
-
-# Production stage
-FROM base AS production
-WORKDIR /app
-
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy built application
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Change ownership of the app directory
+RUN chown -R nextjs:nodejs /app
 
+# Switch to non-root user
 USER nextjs
 
-EXPOSE 3000
+# Expose port (Railway will set PORT env var)
+EXPOSE $PORT
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+# Set hostname
+ENV HOSTNAME="0.0.0.0"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Production command
-CMD ["node", "server.js"]
+# Start the application
+CMD ["npm", "start"]

@@ -5,6 +5,9 @@ import { ArrowRight, Shield, TrendingUp, Zap, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { LiveStats } from '@/components/landing/LiveStats'
+import { MarketOverview } from '@/components/landing/MarketOverview'
+import { AIPerformanceShowcase } from '@/components/landing/AIPerformanceShowcase'
 
 export default function LandingPage() {
   return (
@@ -83,26 +86,8 @@ export default function LandingPage() {
           </p>
 
           {/* Live Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            {[
-              { label: 'AUM', value: '$250M+', icon: TrendingUp },
-              { label: 'Active Users', value: '10,000+', icon: Zap },
-              { label: 'Avg Returns', value: '+12.5%', icon: TrendingUp },
-              { label: 'Uptime', value: '99.9%', icon: CheckCircle2 },
-            ].map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + index * 0.1 }}
-              >
-                <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/10 transition-all duration-160">
-                  <stat.icon className="w-8 h-8 text-brand-blue-400 mb-2 mx-auto" />
-                  <p className="text-3xl font-bold text-white mb-1">{stat.value}</p>
-                  <p className="text-sm text-white/60">{stat.label}</p>
-                </Card>
-              </motion.div>
-            ))}
+          <div className="mb-12">
+            <LiveStats />
           </div>
 
           {/* CTA Buttons */}
@@ -125,6 +110,12 @@ export default function LandingPage() {
           </p>
         </motion.div>
       </section>
+
+      {/* Market Overview Section */}
+      <MarketOverview />
+
+      {/* AI Performance Showcase */}
+      <AIPerformanceShowcase />
 
       {/* Features Section */}
       <section className="container mx-auto px-4 py-20">

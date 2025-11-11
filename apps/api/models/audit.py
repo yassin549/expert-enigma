@@ -6,6 +6,32 @@ from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import JSON
 from typing import Optional, Dict, Any
 from datetime import datetime
+from enum import Enum
+
+
+class AuditAction(str, Enum):
+    """Audit action types"""
+    USER_CREATED = "user_created"
+    USER_LOGIN = "user_login"
+    USER_LOGOUT = "user_logout"
+    USER_UPDATED = "user_updated"
+    ACCOUNT_CREATED = "account_created"
+    BALANCE_ADJUSTED = "balance_adjusted"
+    DEPOSIT_PROCESSED = "deposit_processed"
+    WITHDRAWAL_APPROVED = "withdrawal_approved"
+    WITHDRAWAL_REJECTED = "withdrawal_rejected"
+    KYC_APPROVED = "kyc_approved"
+    KYC_REJECTED = "kyc_rejected"
+    ORDER_PLACED = "order_placed"
+    ORDER_CANCELLED = "order_cancelled"
+    POSITION_CLOSED = "position_closed"
+    ADMIN_ACTION = "admin_action"
+    # AI Investment Plan Actions
+    INVESTMENT_PLAN_UPDATED = "investment_plan_updated"
+    EQUITY_CURVE_UPDATED = "equity_curve_updated"
+    BULK_PLAN_UPDATE = "bulk_plan_update"
+    INVESTMENT_ALLOCATED = "investment_allocated"
+    INVESTMENT_WITHDRAWN = "investment_withdrawn"
 
 
 class Audit(SQLModel, table=True):
