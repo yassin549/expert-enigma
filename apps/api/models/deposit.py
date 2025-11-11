@@ -41,13 +41,11 @@ class Deposit(SQLModel, table=True):
     
     # Deposit Details
     amount: Decimal = Field(
-        max_digits=20,
         decimal_places=8,  # Support crypto precision
         description="Amount in cryptocurrency"
     )
     
     amount_usd: Decimal = Field(
-        max_digits=20,
         decimal_places=2,
         description="Amount in USD equivalent"
     )

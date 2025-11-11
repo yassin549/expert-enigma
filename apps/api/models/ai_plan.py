@@ -47,28 +47,24 @@ class AIInvestmentPlan(SQLModel, table=True):
     # Performance (Admin-Managed)
     current_return_pct: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=10,
         decimal_places=2,
         description="Current return percentage (e.g., 5.50 = +5.5%)"
     )
     
     monthly_return_pct: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=10,
         decimal_places=2,
         description="Monthly return %"
     )
     
     quarterly_return_pct: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=10,
         decimal_places=2,
         description="Quarterly return %"
     )
     
     ytd_return_pct: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=10,
         decimal_places=2,
         description="Year-to-date return %"
     )
@@ -83,7 +79,6 @@ class AIInvestmentPlan(SQLModel, table=True):
     # Statistics
     total_invested: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
         decimal_places=2,
         description="Total amount invested by all users"
     )
@@ -107,13 +102,11 @@ class AIInvestmentPlan(SQLModel, table=True):
     # Limits
     min_investment: Decimal = Field(
         default=Decimal("100.00"),
-        max_digits=20,
         decimal_places=2
     )
     
     max_investment: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
         decimal_places=2
     )
     
@@ -158,13 +151,11 @@ class UserInvestment(SQLModel, table=True):
     
     # Investment Amount
     allocated_amount: Decimal = Field(
-        max_digits=20,
         decimal_places=2,
         description="Amount allocated from virtual_balance"
     )
     
     current_value: Decimal = Field(
-        max_digits=20,
         decimal_places=2,
         description="Current value (updated when plan returns updated)"
     )
@@ -172,14 +163,12 @@ class UserInvestment(SQLModel, table=True):
     # Performance
     return_pct: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=10,
         decimal_places=2,
         description="Return % since investment started"
     )
     
     unrealized_pnl: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
         decimal_places=2,
         description="Unrealized P&L: current_value - allocated_amount"
     )

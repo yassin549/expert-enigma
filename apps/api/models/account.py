@@ -37,14 +37,12 @@ class Account(SQLModel, table=True):
     # CRITICAL: Real Money vs Virtual Money Separation
     deposited_amount: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
         decimal_places=2,
         description="Real money deposited (held in business wallet)"
     )
     
     virtual_balance: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
         decimal_places=2,
         description="Virtual trading balance (what user sees and trades with)"
     )
@@ -52,7 +50,6 @@ class Account(SQLModel, table=True):
     # Cached Equity (for performance)
     equity_cached: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
         decimal_places=2,
         description="Cached equity: virtual_balance + unrealized_pnl"
     )
@@ -60,13 +57,11 @@ class Account(SQLModel, table=True):
     # Margin Management
     margin_used: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
         decimal_places=2
     )
     
     margin_available: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
         decimal_places=2
     )
     
@@ -77,7 +72,6 @@ class Account(SQLModel, table=True):
     
     total_pnl: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
         decimal_places=2,
         description="Total realized P&L (from closed trades)"
     )
