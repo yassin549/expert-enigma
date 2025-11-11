@@ -1,0 +1,944 @@
+===========================================
+TOPCOIN PLATFORM - COMPLETE PROJECT SPECIFICATION
+===========================================
+
+CRITICAL API CREDENTIALS (NOWPayments.io - Crypto deposits only):
+NOWPAYMENTS_API_KEY=A53GE0J-PPD4G6Z-NFVAC23-GNBEFAH
+NOWPAYMENTS_PUBLIC_KEY=c83c4ff4-30e7-4bd8-8d91-4d4912ac5863
+NOWPAYMENTS_IPN_SECRET=OemSUwv9OSlRrCjhEV5lMTzfBGKanpen
+
+===========================================
+BUSINESS MODEL & PLATFORM ARCHITECTURE
+===========================================
+
+**What Topcoin Does:**
+Topcoin is a CMF-licensed and MSB-registered trading platform that enables retail traders to trade financial markets (forex, crypto, stocks, indices) WITHOUT opening a broker account and WITHOUT paying additional fees. We handle all the complexity of broker integration on the backend.
+
+**How It Works (Technical Flow):**
+
+1. **User Deposits Money (Crypto Only - REQUIRED)**:
+   - **NO DEMO ACCOUNTS**: Users MUST deposit real money to access the platform
+   - User deposits cryptocurrency via NOWPayments.io
+   - Funds go into our business account (pooled funds)
+   - System records deposit amount in database with user association
+
+2. **Virtual Trading Balance (Separate from Deposit)**:
+   - User's deposited money is held securely in business account
+   - User receives a VIRTUAL trading balance on the platform (displayed amount is simulated)
+   - Virtual balance is completely separate from their actual deposited funds
+   - This virtual balance is what users see and trade with on the platform interface
+
+3. **Simulated Trading Platform**:
+   - Users access fully simulated trading interface (TradingView charts, order book, positions)
+   - All trades are executed instantly in our simulation engine (client-side)
+   - Users see their virtual P&L update in real-time based on simulated fills
+   - Trade management system tracks: open positions, closed trades, virtual balance updates
+   - **NO BROKER INTEGRATION**: All trades exist only in our simulation system
+   - Users experience realistic trading with full order types, leverage, position management
+
+4. **Admin Manual Returns Management**:
+   - **CRITICAL**: Admin manually updates each account's returns and statistics
+   - Admin dashboard shows list of all user accounts with deposit amounts
+   - Admin can adjust virtual balance based on actual trading performance (external)
+   - Admin manually credits profits or debits losses to user accounts
+   - System logs all admin adjustments with timestamps and reasons (audit trail)
+   - Returns are generated from actual trading done separately by our trading team
+   - Admin updates statistics: total return %, monthly returns, equity curve data
+
+5. **Payout Requests**:
+   - Users request withdrawals (crypto) based on their current virtual balance
+   - Manual admin review: verify KYC, check AML flags, validate balance vs. actual funds
+   - Admin approves/rejects based on available pooled funds and user's real account value
+   - We deliver exceptional service with fast payouts
+   - Funds sent from business account to user's crypto address
+   - System deducts from user's virtual balance upon payout approval
+
+6. **AI Investment Plans (Optional for Users)**:
+   - Users can allocate their virtual balance to AI investment plans
+   - Multiple plans with different risk profiles (Conservative, Balanced, Aggressive)
+   - Admin manually updates returns for each plan based on actual AI trading results
+   - Users see performance metrics, equity curves, trade history
+   - This showcases "the most powerful trading agent ever deployed publicly"
+
+**Competitive Advantages:**
+✅ No broker account needed for users (we manage everything)
+✅ Real money deposits required (no demo trading - professional platform)
+✅ Access to professional trading simulation platform
+✅ AI-powered investment plans with manually verified returns
+✅ Fully regulated (CMF + MSB)
+✅ Exceptional customer service
+✅ Admin-managed returns ensure accurate profit distribution
+
+**Regulatory Compliance:**
+- CMF (Financial Markets Commission) licensed - display prominently
+- MSB (Money Services Business) registered - display prominently
+- Full KYC/AML compliance with auto-approval workflow
+- Complete audit trails for all transactions
+- Regulator-ready reporting and reconciliation
+
+**Design Philosophy:**
+- Ultra-futuristic, premium financial interface
+- Glassmorphic design with smooth animations
+- Zero redundancy - every element serves a purpose
+- Desktop = Mobile experience (complete parity)
+- Professional polish that screams "you're in expert hands"
+
+===========================================
+
+# Prompt 1 — Monorepo & brand scaffold: Topcoin (production-grade, CMF/MSB regulated)
+
+```
+You are my AI code editor. Initialize a Topcoin monorepo with a production-grade scaffold designed for a CMF and MSB regulated simulated trading platform with admin-managed returns. Users deposit real money, trade on a fully simulated platform, and admin manually updates account returns and statistics.
+
+Tech stack & structure:
+- Monorepo root with Git, LICENSE, README (Topcoin overview + CMF/MSB compliance), .gitignore.
+- Frontend: Next.js 14+ + TypeScript + Tailwind + shadcn/ui + lucide-react + TradingView Lightweight Charts. App at /apps/web.
+- Backend API: FastAPI + Python 3.11 + SQLModel + Alembic. App at /apps/api.
+- Workers: Celery (Redis broker) in /apps/worker (for background jobs like deposit reconciliation).
+- Agent: /apps/agent Python package (AI strategies, backtester, performance tracking for investment plans).
+- Admin tools: /apps/admin (React + shadcn) or /apps/web/admin route (KYC review, payout approval, **account returns management**).
+- Infra/dev: docker-compose.yml (postgres, redis, pgadmin, web, api, worker, nginx).
+- CI: GitHub Actions .github/workflows/ci.yml with lint/test/build stages.
+- Makefile: `make dev`, `make build`, `make migrate`, `make seed`, `make test`, `make deploy-staging`.
+
+Key contents to output:
+- Full file list created.
+- package.json, tsconfig.json, tailwind.config.js, pyproject.toml, docker-compose.yml.
+- /apps/api/main.py (FastAPI skeleton), /apps/api/Dockerfile, /apps/web/app/page.tsx, /apps/web/Dockerfile.
+- /apps/worker/sample_task.py (Celery background jobs).
+- /apps/agent/strategies/ai_engine.py (AI investment plans).
+- Admin account management module showing manual returns update interface.
+- NOWPayments integration stub in /apps/api/payments/nowpayments.py.
+- Trading simulation engine in /apps/api/trading/simulator.py.
+- README with run commands and CMF/MSB compliance notes.
+
+Design philosophy:
+- Futuristic, glassmorphic, premium financial UI/UX.
+- Zero redundancy, every element useful and beautifully designed.
+- Desktop = Mobile experience (full feature parity).
+- Smooth transition animations, professional polish.
+- Prominent CMF/MSB regulatory badges on landing page.
+
+Acceptance criteria:
+- `make dev` boots web @ http://localhost:3000 and API @ http://localhost:8000/docs.
+- docker-compose starts postgres and redis; web and api respond.
+- Admin dashboard accessible with account management interface.
+- Landing page displays real-time statistics, TradingView charts, platform performance metrics.
+- Users cannot access trading platform without depositing real money (no demo mode).
+
+---
+
+# Prompt 2 — DB schema + custody & legal primitives (Topcoin: ledger-first, admin-managed)
+
+```
+You are my AI code editor. Design the Topcoin DB schema and Alembic migrations that support a regulated, ledger-first platform: segregated custody, business deposit wallet, virtual trading balances, admin-managed returns, AML flags, KYC audit, and full audit trails.
+
+**CRITICAL SEPARATION**: 
+- Real Money: User deposits held in business wallet (pooled funds)
+- Virtual Money: Trading balances displayed on platform (completely separate, admin-managed)
+
+Models (primary & compliance-focused):
+- users (id, email UNIQUE, hashed_password, kyc_status ENUM {pending, auto_approved, approved, rejected}, kyc_submitted_at, kyc_reviewed_at, kyc_reviewed_by, plan_id, created_at, last_login, region, can_access_trading BOOLEAN DEFAULT FALSE)
+- accounts (id, user_id, name, base_currency, **virtual_balance DECIMAL** (what user sees), **deposited_amount DECIMAL** (real money), equity_cached, created_at, updated_at)
+- **admin_adjustments** (id, account_id, admin_user_id, adjustment_type ENUM {manual_profit, manual_loss, return_update, equity_adjustment}, amount, reason TEXT, previous_balance, new_balance, created_at) **[NEW TABLE]**
+- wallets (id, type ENUM {business_deposit}, external_ref, balance, currency, reserved_amount, reconciled_at)
+- deposits (id, user_id, amount, currency, status, tx_meta JSON, nowpayments_payment_id, reconciled BOOLEAN, created_at)
+- withdrawals (id, user_id, amount_requested, amount_approved, currency, status, admin_review_id, requested_at, processed_at, payout_address)
+- orders (id, account_id, instrument_id, side, type, size, price, status, **virtual_trade BOOLEAN DEFAULT TRUE**, created_at, filled_at, fill_price, slippage, pnl DECIMAL)
+- positions (id, account_id, instrument_id, side, size, entry_price, current_price, pnl, opened_at, closed_at, status)
+- ledger_entries (id, account_id, entry_type ENUM{deposit, withdrawal, admin_adjustment, trade_pnl, fee}, amount, balance_after, meta JSON, created_at)
+- instruments (id, symbol, name, type, min_size, max_size, tick_size)
+- candles (id, instrument_id, timestamp, open, high, low, close, volume, timeframe, indexed on instrument_id + timestamp)
+- **ai_investment_plans** (id, name, risk_profile ENUM {conservative, balanced, aggressive}, description, current_return_pct, equity_curve_data JSON, last_updated_at)
+- **user_investments** (id, user_id, plan_id, allocated_amount, current_value, return_pct, started_at)
+- aml_alerts (id, user_id, type, severity, tx_id, details, created_at, resolved_by)
+- audits (id, actor_user_id, action, object_type, object_id, diff JSON, reason, created_at)
+- support_tickets (id, user_id, subject, status, priority, created_at, resolved_at)
+
+Migrations & seed:
+- Alembic migrations for tables + indexes (users.email unique, candles instrument_id+ts, accounts user_id).
+- /apps/api/scripts/seed_dev.py: 
+  - Demo admin user with admin privileges
+  - Demo regular user (demo@topcoin.local) with $500 deposited, $10,000 virtual balance
+  - Business wallet seeded with $250,000
+  - Five demo instruments (BTC/USD, ETH/USD, EUR/USD, Gold, SPX)
+  - 30 days of seeded 1-minute candles (deterministic price data)
+  - Three AI investment plans (Conservative, Balanced, Aggressive)
+
+Dev endpoint:
+- POST /api/seed/run for dev only (resets and seeds database).
+
+**Admin Account Management Features**:
+- Admin dashboard to view all user accounts with virtual_balance vs deposited_amount
+- Manual adjustment interface: credit/debit virtual balance with reason and audit logging
+- Batch update capability for applying returns to multiple accounts
+- Historical adjustment log per account with timestamp and admin user
+- Export account statements for users and regulators
+
+Compliance / Accounting notes:
+- **Separate Real from Virtual**: deposited_amount tracks real money; virtual_balance tracks trading balance
+- Store immutable ledger entries and admin_adjustments for complete audit trail
+- Provide views to calculate: total user deposits, total virtual balances, business wallet available funds
+- Flag deposits > AML_THRESHOLD for review and generate aml_alerts
+- Track all admin adjustments with reason, timestamps, and before/after values
+
+Acceptance criteria:
+- After `make migrate` & POST /api/seed/run, demo user exists with deposited_amount = $500 and virtual_balance = $10,000
+- Candles query returns 30 days of data for all instruments
+- Admin can adjust user virtual_balance and see audit trail in admin_adjustments table
+- All deposit/withdrawal actions create ledger_entries
+- Users with can_access_trading = FALSE cannot access trading interface (must deposit first)
+```
+
+---
+
+# Prompt 3 — Backend core: Trading simulation engine + Admin account management
+
+```
+You are my AI code editor. Build the FastAPI core for Topcoin featuring a fully simulated trading platform with admin-managed returns. NO broker integration - all trading is simulated. Users deposit real money, trade with virtual balances, and admin manually updates returns.
+
+**Core Endpoints**:
+
+Auth & Access:
+- POST /api/auth/signup, /login (JWT), /refresh, /auth/2fa/verify
+- GET /api/auth/me (returns user.can_access_trading status)
+
+Account Management:
+- POST /api/accounts (create after first deposit)
+- GET /api/accounts/:id (virtual_balance, deposited_amount, statistics)
+- GET /api/accounts/:id/balance, /api/accounts/:id/equity-curve
+
+Trading (100% Simulated):
+- POST /api/accounts/:id/orders (market, limit, stop, take-profit orders)
+- GET /api/accounts/:id/orders (history with filters: status, date range, instrument)
+- DELETE /api/accounts/:id/orders/:order_id (cancel pending)
+- GET /api/accounts/:id/positions (open positions with real-time P&L)
+- POST /api/accounts/:id/positions/:id/close (close single position)
+- POST /api/accounts/:id/positions/close-all (emergency close all)
+
+Market Data (Real-time):
+- GET /api/market/{symbol}/candles?tf=1m|5m|1h|1d&from=&to= (paginated)
+- GET /api/market/{symbol}/ticker (current price, spread)
+- GET /api/market/instruments (all tradeable symbols)
+- WebSocket /ws/market/prices (real-time updates for TradingView charts)
+
+**Admin Account Management** (Admin-only):
+- GET /api/admin/accounts (list all with virtual_balance vs deposited_amount)
+- POST /api/admin/accounts/:id/adjust (manual adjustment with reason)
+- POST /api/admin/accounts/batch-adjust (apply % return to multiple accounts)
+- GET /api/admin/accounts/:id/adjustments (complete adjustment history)
+- POST /api/admin/investment-plans/:id/update-returns (update AI plan performance)
+- GET /api/admin/statistics/overview (total deposits, total virtual balances, discrepancy)
+
+**Trading Simulation Engine** (/apps/api/trading/simulator.py):
+- Deterministic fills based on current market price from candles
+- Realistic spread modeling (0.05-0.2% depending on instrument liquidity)
+- Slippage simulation (0.1-0.5% for market orders, better for limits)
+- Position tracking: entry_price, current_price, unrealized_pnl
+- Automatic virtual balance updates on position close
+- Margin requirements: leverage enforcement, margin calls, stop-outs
+- All trades virtual_trade = TRUE (never sent to real broker)
+
+**Admin Returns Management Logic**:
+- Admin views external trading results (managed separately by trading team)
+- Admin credits profits / debits losses to user virtual balances
+- Each adjustment creates admin_adjustments record:
+  - Fields: adjustment_type, amount, reason, previous_balance, new_balance, admin_user_id, timestamp
+  - Types: manual_profit, manual_loss, return_update, equity_adjustment
+- Batch tool: apply X% return to selected accounts (e.g., +5% to all Conservative plan users)
+- Export adjustment reports for compliance/auditing
+- Complete audit trail with before/after snapshots
+
+**Access Control System**:
+- New users: can_access_trading = FALSE (blocked from trading platform)
+- After first confirmed deposit: set can_access_trading = TRUE
+- Middleware checks flag before allowing any trade endpoint access
+- Redirect to deposit page with clear CTA if FALSE
+
+**WebSocket Real-time**:
+- /ws/accounts/:id/trades (instant order fills, balance updates)
+- /ws/accounts/:id/positions (live P&L as prices change)
+- /ws/market/prices (TradingView chart data stream)
+- /ws/admin/accounts (admin real-time monitoring dashboard)
+
+**Testing & Validation**:
+- Unit tests: order placement → instant simulated fill → virtual balance update
+- Position P&L calculation accuracy tests
+- Admin adjustment audit trail verification
+- Access control tests (block trading without deposit)
+- Simulation engine accuracy (fills at correct prices with realistic spread)
+
+Acceptance criteria:
+- User places market order → instant simulated fill → virtual_balance updated
+- Position tracking with real-time P&L calculations
+- Admin can adjust any account balance with reason logged in admin_adjustments
+- Users without deposits blocked from trading platform (can_access_trading = FALSE)
+- Complete separation: deposited_amount (real money) vs virtual_balance (trading money)
+- All trading activity logged in orders/positions tables with audit trail
+```
+
+---
+
+# Prompt 4 — Frontend premium UX: Landing, dashboards & deposit flows (Topcoin futuristic)
+
+```
+You are my AI code editor. Create Topcoin frontend pages and components with an ultra-futuristic, premium financial design featuring glassmorphism, smooth animations, zero redundancy, and complete mobile-desktop parity.
+
+DESIGN PHILOSOPHY (CRITICAL):
+- Futuristic, cutting-edge financial interface that screams "future of trading"
+- Glassmorphic effects with blur, transparency, gradient accents
+- Smooth transition animations (160ms ease-out) on every interaction
+- Zero blah-blah: every UI element must be useful and purposeful
+- Desktop = Mobile: complete feature parity, equally advanced on both
+- Professional polish: users must feel in expert hands
+- Prominent CMF + MSB regulatory badges (trust signals on landing page)
+
+Pages & components:
+- Global layout: header (Topcoin logo + CMF/MSB badges), footer with legal links and comprehensive risk disclaimer.
+- **Landing Page (showcase our edge)**:
+  - Hero with LIVE real-time statistics: current AUM, active users trading, algorithmic edge percentage, total returns generated
+  - TradingView Lightweight Charts showing live prices of major assets (BTC, ETH, SPX, Gold, EUR/USD)
+  - Real-time advanced charts displaying our trading engine performance
+  - Interactive algorithmic demo showing live order flow
+  - Social proof section with testimonials
+  - Clear CTAs: "Start Trading" and "Invest with AI"
+  - Scroll-linked animations and hero scrubbing effects
+  - **Display CMF license number and MSB registration prominently in hero section**
+  
+- **Dashboard (post-login) - Ultra Advanced**:
+  - Hero: account summary with real-time balance, simulated P&L, equity curve (live updates)
+  - Business wallet exposure visualization
+  - Strategy performance snapshot with detailed metrics
+  - Quick action cards: Deposit, Trade, Invest in AI, Request Payout
+  - Live trading canvas link with real-time market pulse
+  - Bot/strategy subscription status and performance
+  - Mobile: swipe gestures, bottom action bar, full-screen chart mode
+  
+- **Deposit Flow (crypto-only, professionally tailored)**:
+  - Beautiful multi-step flow: Amount → Cryptocurrency Selection → Payment → Confirmation
+  - **Method: ONLY crypto via NOWPayments.io** (BTC, ETH, USDT, USDC, etc.)
+  - Personalized UX: suggest deposit amounts based on user's plan tier
+  - Show estimated processing time and network fees
+  - Display crypto address QR code with copy button
+  - Real-time deposit tracking with confirmations count
+  - Auto-credit simulated balance once confirmed (with notification)
+  - Professional polish with glassmorphic cards and smooth transitions
+  
+- **Payout Request UI (exceptional service promise)**:
+  - Request withdrawal form with amount and crypto address
+  - Upload optional proof/documents if needed
+  - Show expected SLA ("We pride ourselves on exceptional service")
+  - Real-time status tracking in user dashboard
+  - Admin review indicators with transparency
+  
+- **Trading Agent UI (AI Investment Hub) - Advanced Interface**:
+  - Display "Most Powerful Trading Agent Ever Deployed Publicly"
+  - Investment plan selector with risk profiles
+  - Real-time returns dashboard with detailed financial metrics
+  - Historical performance charts (daily, weekly, monthly returns)
+  - Per-trade explanations with AI reasoning
+  - Risk controls and alert settings
+  - Subscribe/unsubscribe with plan comparison
+  - Mobile-optimized with full feature set
+  
+- **Admin Portal** (/admin - hidden unless admin role):
+  - Overview: business wallet balance, total user deposits, total virtual balances, discrepancy monitoring
+  - **Account Returns Management**: view all accounts, manually adjust virtual balances, batch apply returns
+  - KYC Review Queue (approve/reject with audit trail)
+  - Payout Approval Queue with user verification status and balance validation
+  - AML alerts dashboard
+  - Admin adjustment history with complete audit log
+  - Emergency controls (pause deposits, pause withdrawals, freeze accounts)
+
+Design System:
+- Color palette: Deep blues (`--top-blue-900: #062A7A`, `--top-blue-600: #1F6BEA`), futuristic purples, white, subtle grays
+- Glassmorphism: backdrop-blur-xl, bg-white/10, border gradients
+- Motion: 160ms transitions, 8px Y-translate on page load, smooth chart redraws (180ms)
+- 3D layered cards with perspective transforms
+- Micro-interactions: hover states, loading skeletons, success animations
+- Mobile: touch gestures, haptic feedback, swipe navigation, gyroscope tilt (optional)
+- Accessibility: WCAG AA, keyboard navigation, ARIA labels, screen reader support
+
+Acceptance criteria:
+- Landing page displays live statistics and TradingView charts of major assets
+- CMF/MSB badges visible and prominent on landing page
+- Deposit flow (crypto-only) integrates with NOWPayments.io and shows QR codes
+- Dashboard shows real-time equity curve and trading performance
+- AI Investment hub displays returns and financial metrics
+- Mobile experience equals desktop in functionality and polish
+```
+
+---
+
+# Prompt 5 — Trading canvas & order management UI (Topcoin professional simulated trading)
+
+```
+You are my AI code editor. Build the trading canvas with a professional order management system for 100% simulated trading. Clean, intuitive interface with real-time updates and complete trade lifecycle visibility.
+
+**Chart & Trading Canvas**:
+- **TradingView Lightweight Charts** integration with full features:
+  - Candle types: candlestick, bars, line, area
+  - Timeframe selector: 1m, 5m, 15m, 1h, 4h, 1d, 1w
+  - Technical indicators: SMA, EMA, RSI, MACD, Bollinger Bands, Volume
+  - Drawing tools: trendlines, horizontal lines, rectangles, fibonacci
+  - Crosshair, zoom/pan, click-to-place order
+- Depth chart & order book (simulated visualization)
+- Recent trades feed, real-time price ticker
+- Position markers on chart
+
+**Order Ticket**:
+- Order types: Market, Limit, Stop, Stop-Limit, Take-Profit, Trailing Stop, OCO
+- Inputs: symbol, buy/sell, size, price, leverage (1x-100x), SL/TP
+- Preview: margin, spread, slippage, post-trade balance
+- Instant order placement
+
+**Position Management**:
+- Open positions with real-time P&L
+- Quick close, modify SL/TP, scale in/out
+- Close All emergency button
+- Trade history and analytics
+
+**Mobile**: Full-screen chart, swipe gestures, haptic feedback, landscape mode
+
+Acceptance criteria:
+- Market order → instant fill → virtual_balance updated
+- TradingView charts with real-time data
+- Live P&L updates, mobile parity
+```
+
+---
+
+# Prompt 6 — AI Investment Plans & Admin Management (Topcoin institutional)
+
+```
+You are my AI code editor. Implement Topcoin AI investment plans platform with admin-managed returns, performance tracking, and transparent reporting for users.
+
+**AI Investment Plans Structure**:
+- Three core plans: Conservative (low risk), Balanced (medium risk), Aggressive (high risk)
+- Each plan has: name, risk_profile, description, current_return_pct, equity_curve_data (JSON), last_updated_at
+- Plans stored in ai_investment_plans table
+- User allocations tracked in user_investments table
+
+**Admin Plan Management** (Critical):
+- Admin dashboard to view all AI investment plans
+- Manual returns update interface for each plan:
+  - Update current_return_pct (monthly, quarterly, YTD returns)
+  - Update equity_curve_data (historical performance chart data)
+  - Add performance notes and market commentary
+  - Set timestamp for last_updated_at
+- Bulk update tool: apply same return % to all users in a plan
+- Performance reporting: CSV/PDF export of plan returns
+- Complete audit trail for all plan updates
+
+**User Investment Interface**:
+- Investment plans page showing all three options
+- Plan comparison table: risk level, historical returns, current allocation, description
+- Investment allocation flow:
+  - Select plan, enter amount (from virtual_balance)
+  - Confirm allocation with risk disclosure
+  - Track investment in user dashboard
+- Performance dashboard per plan:
+  - Current value vs invested amount
+  - Return % with color coding (green/red)
+  - Equity curve chart showing growth over time
+  - Historical monthly returns
+- Reallocate or withdraw options
+
+**Performance Display** (Showcase "Most Powerful AI"):
+- Landing page highlights: total AUM, average returns, number of active investors
+- Live performance metrics updated by admin
+- Testimonials and social proof
+- Risk disclaimers and past performance notices
+- Professional charts showing consistent returns
+
+**Admin Returns Workflow**:
+1. Admin accesses plan management dashboard
+2. Reviews external AI trading results (managed separately)
+3. Calculates returns for each plan
+4. Updates plan performance data with reason/notes
+5. System automatically updates all user_investments with new return %
+6. Users see updated values in their investment dashboard
+7. All updates logged in audits table
+
+**Risk Management**:
+- Clear risk disclosures per plan
+- Users acknowledge investment risks before allocating
+- Admin can pause investments in specific plans if needed
+- Monthly performance statements for users
+- Compliance-ready reporting
+
+Acceptance criteria:
+- Admin can update AI plan returns and see changes reflected for all users
+- Users can allocate virtual_balance to investment plans
+- Performance dashboard shows accurate returns and equity curves
+- Investment allocations tracked with complete audit trail
+- Landing page displays AI performance metrics updated by admin
+```
+
+---
+
+# Prompt 7 — Payments, custody rails, settlements & payouts (Topcoin crypto-native)
+
+```
+You are my AI code editor. Implement crypto deposits via NOWPayments.io, custody and payout rails with robust reconciliation, escrow/settlement logic, and admin-controlled payouts.
+
+**Deposit Rails (CRYPTO ONLY via NOWPayments.io)**:
+- **Single provider: NOWPayments.io** (API credentials stored in env)
+- Supported cryptocurrencies: BTC, ETH, USDT (ERC20/TRC20), USDC, LTC, BCH, XRP, and other major coins
+- Deposit flow:
+  1. User selects cryptocurrency and amount
+  2. POST /api/payments/create → creates NOWPayments invoice with unique payment_id
+  3. Display crypto address + QR code to user
+  4. User sends crypto from their wallet
+  5. NOWPayments sends IPN (Instant Payment Notification) to webhook
+  6. POST /api/payments/webhook → verify signature, update deposit status
+  7. On confirmation: credit user's deposited_amount, set can_access_trading = TRUE, create ledger_entry
+- Webhook security: verify NOWPAYMENTS_IPN_SECRET signature to prevent fraud
+- Store all transaction metadata in deposits table (tx_hash, confirmations, network fees)
+- Real-time deposit status updates via WebSocket to user dashboard
+
+**Business Wallet Management**:
+- All deposits go into pooled business_deposit wallet
+- Track total: sum of all user deposited_amounts
+- Track virtual total: sum of all user virtual_balances
+- Admin dashboard shows: total deposits, total virtual balances, delta (profit/loss from trading)
+- Daily reconciliation: compare NOWPayments reports to database deposits
+
+**Payout System** (Admin-Controlled):
+- User withdrawal request flow:
+  1. User submits: POST /api/payouts/request with amount and crypto address
+  2. System checks: virtual_balance >= amount, KYC approved, no AML flags
+  3. Create withdrawal record with status = 'pending'
+  4. Admin review required before payout
+- Admin payout review interface:
+  - View all pending withdrawal requests
+  - Check user KYC status, AML flags, deposit history, virtual_balance vs deposited_amount
+  - Validate payout doesn't exceed business wallet available funds
+  - Options: Approve (full/partial amount) or Reject with reason
+- On admin approval:
+  - Deduct from user's virtual_balance
+  - Mark withdrawal as 'approved'
+  - Worker sends crypto via NOWPayments or manual process
+  - Create ledger_entry for withdrawal
+  - Update withdrawal status to 'completed' with tx_hash
+- Exceptional service: fast review (<4 hours for VIP, <24h for standard)
+
+**Accounting & Reconciliation**:
+- Daily reconciliation job:
+  - Compare total deposits from NOWPayments vs database
+  - Compare total payouts vs database
+  - Calculate business wallet expected balance
+  - Flag discrepancies and create aml_alerts
+- Monthly statements for users (downloadable PDF/CSV)
+- Regulator-ready reports: all deposits, withdrawals, balances with audit trail
+- Ledger_entries table maintains immutable transaction history
+
+**Security & Compliance**:
+- KYC required for withdrawals (kyc_status = 'approved' or 'auto_approved')
+- Rate limits: max 3 withdrawal requests per day
+- AML checks: flag large withdrawals (>$10k), rapid in/out patterns
+- Withdrawal limits based on account verification level
+- Two-factor authentication required for withdrawal requests
+- Admin IP whitelist for payout approvals
+- All actions logged in audits table
+
+**Access Control After Deposit**:
+- First confirmed deposit triggers: can_access_trading = TRUE
+- User can now access full trading platform
+- Virtual trading balance initialized (can be different from deposited amount - admin decides)
+- Notification sent: "Deposit confirmed - you can now start trading!"
+
+Acceptance criteria:
+- User deposits crypto → NOWPayments webhook → deposited_amount credited → can_access_trading = TRUE
+- Deposit status updates in real-time via WebSocket
+- Admin can review and approve/reject payout requests with complete audit trail
+- Reconciliation job compares NOWPayments reports to database and flags mismatches
+- All deposits/withdrawals create ledger_entries
+- Users cannot withdraw more than their virtual_balance
+- KYC required for all payouts
+```
+
+---
+
+# Prompt 8 — KYC / AML automation & legal framework (Topcoin regulator-friendly with speed)
+
+```
+You are my AI code editor. Implement KYC/AML automation with auto-approval flow that reduces friction while maintaining full audit trails and admin control.
+
+**KYC Flow (Auto-Approve Strategy)**:
+- User uploads KYC docs: identity (ID card/passport), selfie, proof-of-address
+- **CRITICAL FLOW**: On document submission, AUTOMATICALLY set user.kyc_status = 'auto_approved' (instant approval)
+- Rationale: Prevent user drop-off from pending KYC delays; admin reviews post-approval
+- Create kyc_submission record with all uploaded images (encrypted storage)
+- Store submission timestamp and auto-approval timestamp
+- **Admin Review Queue (Post-Approval Review)**:
+  - Admin can review auto-approved KYCs at any time
+  - Options: Keep as 'approved' OR 'reject' if documents invalid
+  - On rejection: set kyc_status = 'rejected', notify user to re-verify, freeze withdrawals until re-verified
+  - On explicit approval: set kyc_status = 'approved' (verified by admin)
+  - All actions logged with admin ID, timestamp, and reason in audits table
+- Benefits: Users get immediate access (speed), admin maintains full control (can always reject), complete audit trail
+
+AML & transaction monitoring:
+- Real-time rules engine (config-driven) that raises aml_alerts on patterns: large deposits, rapid in/out flow, velocity, round-trip transfers, suspicious trade patterns (wash-like), abnormal P&L spikes for new accounts.
+- Alerts prioritized by severity; automation rules can auto-freeze withdrawals & copy-trade dispatches for flagged accounts pending review.
+
+Audit & retention:
+- Keep immutable audit trail for KYC/AML decisions with reviewer, timestamp, and rationale.
+- Data retention policy: PII per region configurable; support data export and deletion requests with logged exceptions for audit retention requirements.
+
+Legal templates & disclaimers:
+- Draft templates for Terms, Privacy, Risk Disclosure, Copy-trade Agreement, and Broker Custody Notice. Mark them as DRAFT and require legal review.
+- Per-region gating: if user region has CFD/broker prohibitions, block copy-trade and show region-specific disclaimers.
+
+Acceptance criteria:
+- KYC default auto_approve on upload sets kyc_status = auto_approved; admin can change to approved/rejected later with audit record.
+- AML rules produce aml_alerts which block payouts and copy-trade dispatch until resolved (configurable).
+- Admin UI displays KYC queue and AML alerts with ability to release holds after review.
+```
+
+---
+
+# Prompt 9 — Admin & ops: Account management, emergency controls, reconciliation, reporting
+
+```
+You are my AI code editor. Build a complete Admin & Ops console for Topcoin with full control for account returns management, legal compliance, emergency response, reconciliation, and regulator reporting.
+
+**Admin Dashboard Overview**:
+- Secure login + 2FA; restrict admin routes by role and IP allowlist
+- Key metrics displayed:
+  - Total deposits (real money in business wallet)
+  - Total virtual balances (sum of all user trading balances)
+  - Delta/discrepancy (profit/loss from returns management)
+  - Active users trading
+  - Pending deposits/withdrawals count
+  - AML alerts count
+  - Daily deposit/withdraw volume
+
+**Account Returns Management** (Core Feature):
+- List all user accounts with columns:
+  - User email, deposited_amount, virtual_balance, equity, last_active
+  - Return % (calculate: (virtual_balance - deposited_amount) / deposited_amount * 100)
+  - Filter/sort by: return %, deposit amount, activity
+- Manual adjustment interface:
+  - Select account(s)
+  - Adjustment type: manual_profit, manual_loss, return_update, equity_adjustment
+  - Enter amount or percentage
+  - Reason field (required for audit)
+  - Preview: previous_balance → new_balance
+  - Confirm and apply
+- Batch adjustment tool:
+  - Select multiple accounts (filter by plan, deposit range, etc.)
+  - Apply percentage return (e.g., +5% to all)
+  - Reason applies to all selected accounts
+  - Creates individual admin_adjustments records for each
+- Adjustment history per account:
+  - Timeline view of all manual adjustments
+  - Shows: date, admin, type, amount, reason, before/after balances
+  - Export to CSV/PDF for compliance
+
+**KYC Management Queue**:
+- Auto-approved KYCs ready for review
+- Pending KYC submissions
+- Rejected KYCs requiring resubmission
+- Actions: approve, reject (with reason), request additional documents
+- Bulk actions for batch processing
+- Complete audit logging of all decisions
+
+**Payout Approval Queue**:
+- List all pending withdrawal requests
+- For each request show:
+  - User info, KYC status, AML flags
+  - Requested amount, crypto address
+  - User's deposited_amount vs virtual_balance
+  - Withdrawal history
+  - Available business wallet funds
+- Actions: approve (full/partial), reject (with reason), request verification
+- Approval creates ledger_entry and initiates crypto transfer
+- Complete audit trail for all payout decisions
+
+**AI Investment Plans Management**:
+- View all three plans with current performance
+- Update plan returns interface:
+  - Select plan (Conservative/Balanced/Aggressive)
+  - Update current_return_pct
+  - Update equity_curve_data (JSON with historical points)
+  - Add performance notes
+  - Apply updates → automatically updates all user_investments
+- View users invested in each plan
+- Generate performance reports
+
+**AML Alerts Dashboard**:
+- Real-time alerts for suspicious activity:
+  - Large deposits (>$10k)
+  - Rapid in/out patterns
+  - Multiple failed withdrawal attempts
+  - Unusual trading patterns
+- Severity levels: low, medium, high, critical
+- Actions: investigate, resolve, escalate, freeze account
+- Case management with notes and resolution tracking
+
+**Reconciliation Tools**:
+- Daily reconciliation dashboard:
+  - Compare NOWPayments deposits vs database
+  - Compare payouts sent vs database withdrawals
+  - Business wallet expected vs actual balance
+  - Ledger sums vs account balances
+- Run reconciliation for date range
+- Export discrepancies to CSV
+- Create support tickets for mismatches
+- Flag accounts needing manual review
+
+**Emergency Controls**:
+- Global pause switches:
+  - Pause new deposits (maintenance mode)
+  - Pause withdrawal processing
+  - Pause trading platform access
+  - Freeze specific user accounts
+- Incident management:
+  - Emergency announcement composer (notify all users)
+  - Runbook access for common issues
+  - Rollback tools for critical errors
+- All emergency actions logged with reason and timestamp
+
+**Compliance & Reporting**:
+- Generate regulator-ready reports:
+  - Daily deposit/withdrawal summary
+  - Monthly user activity report
+  - Quarterly financial statements
+  - Annual audit package
+- Export formats: CSV, PDF, Excel
+- Include: user anonymization options, signing metadata
+- Automated monthly statements for users
+- Complete audit trail export for regulators
+
+**Support & Disputes**:
+- Support ticket management system
+- View user disputes and complaints
+- Manual ledger adjustment tools (with justification)
+- Refund processing interface
+- User communication tools
+
+**Observability & Monitoring**:
+- Sentry integration for error tracking
+- Prometheus metrics: API latency, worker queue length, deposit processing time
+- Grafana dashboards for live monitoring
+- Alert system: email/Slack for critical issues (P0 incidents)
+- Performance monitoring: response times, database queries, WebSocket connections
+
+Acceptance criteria:
+- Admin can manually adjust any account's virtual_balance with complete audit trail
+- Batch adjustment tool applies returns to multiple accounts simultaneously
+- Payout approval queue shows all necessary user info for informed decisions
+- KYC queue processes auto-approved submissions with post-review capability
+- Reconciliation tools identify and flag discrepancies
+- Emergency controls can pause platform operations with full logging
+- All admin actions recorded in audits table with timestamp, actor, and reason
+```
+
+---
+
+# Prompt 10 — Infra, security, monitoring, legal launch checklist & post-launch ops
+
+```
+You are my AI code editor. Provide deployment manifests, hardened infra configs, security & testing setup, monitoring, and a detailed pre-launch checklist specifically targeted to get Topcoin legally and operationally ready.
+
+**CI/CD & Deployment**:
+- GitHub Actions pipeline:
+  - Lint (ESLint, Pylint, Prettier)
+  - Unit tests (pytest for FastAPI, Jest for Next.js)
+  - Build Next.js app and FastAPI Docker images
+  - Run Alembic migration smoke tests
+  - Push to container registry on main branch
+- Dockerfiles (multi-stage builds):
+  - /apps/web/Dockerfile (Next.js optimized)
+  - /apps/api/Dockerfile (FastAPI with Python 3.11)
+  - /apps/worker/Dockerfile (Celery worker)
+- Deployment options:
+  - **Option A**: Kubernetes manifests (Deployment, Service, Ingress, HPA) + Helm chart
+  - **Option B**: Render/Railway for simplicity (managed DB, auto-deploy from GitHub)
+  - **Option C**: Vercel (web) + Railway (API, worker, DB)
+- Environment management:
+  - Dev, staging, production environments
+  - Secrets vault (AWS Secrets Manager, HashiCorp Vault, or env vars)
+  - Example .env.production template with all required variables
+- Database: PostgreSQL managed service (AWS RDS, Supabase, or Railway)
+- Redis: Managed Redis for Celery (Upstash, Redis Cloud)
+
+**Security & Testing**:
+- SAST + dependency scanning in CI (Snyk, Dependabot)
+- Automated testing:
+  - Unit tests: trading simulation, admin adjustments, NOWPayments webhook validation
+  - Integration tests: deposit flow, withdrawal approval, KYC auto-approval
+  - E2E tests (Playwright):
+    - User signup → deposit → trading → withdrawal request
+    - Admin login → adjust account balance → approve payout
+    - AI investment plan subscription → returns update
+- Penetration testing plan (hire 3rd party firm)
+- Security measures:
+  - Rate limiting (per-IP, per-user)
+  - WAF (Web Application Firewall)
+  - Strong CSP (Content Security Policy)
+  - HTTPS everywhere with HSTS
+  - Secure cookies (httpOnly, sameSite, secure)
+  - API authentication (JWT with short expiry, refresh tokens)
+  - Admin IP whitelist for sensitive operations
+  - Two-factor authentication for admin and user accounts
+
+**Monitoring & Observability**:
+- Error tracking: Sentry for both frontend and backend
+- Metrics: Prometheus + Grafana dashboards:
+  - API latency and throughput
+  - Worker queue length and processing time
+  - Deposit processing time (NOWPayments webhook to credit)
+  - Active users, total deposits, total virtual balances
+  - Admin adjustment frequency
+  - Payout approval time (SLA monitoring)
+- Alerting rules:
+  - P0: API down, database unreachable, payment webhook failures
+  - P1: High error rate, slow response times, deposit reconciliation mismatches
+  - P2: AML alerts, large withdrawals pending, KYC queue backlog
+- Centralized logging: ELK stack or Datadog
+  - Retention: 90 days for operational logs, 7 years for compliance/audit logs
+  - Log all: deposits, withdrawals, admin adjustments, KYC decisions, AML flags
+
+**Legal & Compliance Pre-Launch Checklist** (MUST COMPLETE):
+
+**Regulatory Display**:
+1. ✅ **CMF License Display**: License number and certificate prominently displayed on:
+   - Landing page hero section with official badge
+   - Footer on all pages
+   - Legal/compliance page with full details
+2. ✅ **MSB Registration Display**: Registration details visible on:
+   - Landing page (trust badge)
+   - Footer with registration number
+   - About/Legal pages with verification link
+
+**Legal Documentation**:
+3. ✅ Terms of Service reviewed and published (clearly explain virtual trading model)
+4. ✅ Privacy Policy reviewed and GDPR/CCPA compliant
+5. ✅ Risk Disclosure document (trading involves risk of loss, past performance doesn't guarantee future results)
+6. ✅ Virtual Trading Agreement (explain separation of deposited funds vs virtual balances)
+7. ✅ AI Investment Plans Disclosure (admin-managed returns, no guarantees)
+8. ✅ Withdrawal Policy (admin review process, timelines, fees)
+
+**Technical & Business**:
+9. ✅ NOWPayments.io integration tested and reconciled (deposits confirmed on testnet)
+10. ✅ Formal legal review of simulated-trading + admin-managed returns model by counsel
+11. ✅ AML/KYC policy documented and signed by compliance officer
+12. ✅ Auto-approval policy justified and documented (with post-review process)
+13. ✅ Penetration test completed, critical/high findings remediated
+14. ✅ Proof of funds segregation (client deposits separate from operational funds)
+15. ✅ Business continuity plan (backup admin access, data recovery procedures)
+16. ✅ Customer support SLA defined (<4h for VIP, <24h standard)
+
+**Operational Readiness**:
+17. ✅ Admin team trained on returns management, payout approval, KYC review
+18. ✅ Reconciliation procedures documented (daily/weekly/monthly schedules)
+19. ✅ Dispute handling SOPs created
+20. ✅ Emergency response runbooks prepared
+21. ✅ Insurance coverage reviewed (E&O, cyber, custody if applicable)
+22. ✅ Regulatory filings completed (if required in target jurisdictions)
+
+**CMF/MSB Compliance Display Requirements**:
+- CMF license number and certificate displayed on landing page hero, footer, legal pages
+- MSB registration badge visible on all pages
+- Risk disclaimers on all trading pages ("Trading involves risk of loss")
+- Clear explanation of virtual trading model (deposited funds vs trading balance separation)
+- No hidden fees messaging
+- Customer fund segregation documentation available
+- Complaint handling procedures published
+- Data protection and GDPR/CCPA compliance
+
+**Post-Launch Operations**:
+- Daily reconciliations during first 90 days, then weekly
+- Admin on-call rotations with incident response runbooks
+- Payout SLA enforcement: <4h for VIP users, <24h for standard
+- Customer support trained on exceptional service delivery
+- Launch strategy: soft launch (closed beta, limited regions) → staged public rollout
+- Monthly compliance reviews and regulator reporting schedules
+- Quarterly legal/audit reviews
+- Continuous monitoring of deposit/withdrawal patterns for AML
+
+Acceptance criteria:
+- CI/CD pipeline successfully builds and deploys to staging
+- All smoke tests pass (frontend loads, API healthy, database migrations successful)
+- Sentry error tracking and Prometheus monitoring active with test alerts
+- CMF license and MSB registration prominently displayed on landing page
+- All 22 pre-launch checklist items marked complete
+- Admin can perform full workflow: adjust balances, approve payouts, review KYC
+- User can complete full journey: deposit → trade → request withdrawal
+- Complete compliance documentation package ready for regulator inspection
+```
+
+===========================================
+PROJECT SUMMARY & KEY DELIVERABLES
+===========================================
+
+**Platform Name**: Topcoin
+**Regulatory Status**: CMF Licensed + MSB Registered
+**Primary Tech Stack**: Next.js 14 + FastAPI + PostgreSQL + Redis + Celery
+**Chart Library**: TradingView Lightweight Charts
+**Payment Provider**: NOWPayments.io (crypto-only)
+
+**Core Features to Build**:
+1. ✅ Ultra-futuristic landing page with live statistics and TradingView charts
+2. ✅ User authentication with auto-approved KYC workflow (post-review by admin)
+3. ✅ Crypto deposits via NOWPayments.io (BTC, ETH, USDT, USDC, LTC, BCH, etc.)
+4. ✅ Fully simulated trading platform with real-time TradingView Lightweight Charts
+5. ✅ **Admin account returns management system** (manual adjustment of virtual balances)
+6. ✅ AI investment plans with admin-managed performance updates
+7. ✅ Admin dashboard: KYC review, payout approval, account management, reconciliation
+8. ✅ Payout request system with exceptional service delivery (<4h VIP, <24h standard)
+9. ✅ Complete audit trails for all transactions and admin actions
+10. ✅ Mobile-first responsive design with full desktop parity
+
+**Critical Business Logic** (Updated Architecture):
+- **NO DEMO ACCOUNTS**: Users MUST deposit real money to access platform
+- User deposits crypto → deposited_amount recorded (real money in business wallet)
+- User receives virtual_balance (separate from deposit, used for trading)
+- All trading is 100% simulated (NO real broker integration)
+- **Admin manually updates virtual balances** based on external trading results
+- Trade simulation tracks positions, P&L, margin requirements in real-time
+- KYC documents → auto-approved instantly → admin post-reviews later
+- Payout requests → admin validates (KYC, AML, balance) → approves/rejects
+- Complete separation: deposited_amount (real) vs virtual_balance (trading)
+
+**Admin Returns Management Workflow**:
+1. Admin accesses account management dashboard
+2. Views all user accounts: deposited_amount vs virtual_balance
+3. Manually adjusts virtual_balance (credit profit or debit loss)
+4. Provides reason for adjustment (required for audit)
+5. System logs adjustment in admin_adjustments table
+6. User sees updated balance immediately
+7. Complete audit trail maintained for regulators
+
+**Design Requirements**:
+- Ultra-futuristic, glassmorphic interface
+- Smooth animations and transitions (160ms ease-out)
+- Zero redundancy - every UI element serves a purpose
+- CMF license and MSB registration badges prominently displayed
+- Mobile = Desktop: complete feature parity
+- Professional, premium financial aesthetic
+- TradingView Lightweight Charts for professional trading experience
+
+**Regulatory Compliance**:
+- CMF license number and certificate displayed on all pages
+- MSB registration visible with official badges
+- Complete KYC/AML workflows with full audit trails
+- Risk disclaimers on all trading pages ("Trading involves risk of loss")
+- Clear virtual trading model explanation (separation of funds)
+- Customer fund segregation (pooled business wallet)
+- Regulator-ready reporting and daily reconciliation
+- Monthly user statements (PDF/CSV download)
+
+**Technology Stack**:
+- **Frontend**: Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, TradingView Lightweight Charts
+- **Backend**: FastAPI, Python 3.11, SQLModel, Alembic migrations
+- **Database**: PostgreSQL (managed service)
+- **Cache/Queue**: Redis + Celery workers
+- **Payments**: NOWPayments.io (crypto-only)
+- **Monitoring**: Sentry, Prometheus, Grafana
+- **Deployment**: Docker + Railway
+
+This specification is ready for implementation. Follow the 10 prompts in sequence to build the complete Topcoin platform with admin-managed returns and fully simulated trading.
