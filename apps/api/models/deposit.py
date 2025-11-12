@@ -99,7 +99,6 @@ class Deposit(SQLModel, table=True):
     # Network Fees
     network_fee: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
         decimal_places=8
     )
     
