@@ -57,7 +57,7 @@ export function AdvancedTradingChart({
 }: AdvancedTradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
-  const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const candlestickSeriesRef = useRef<ISeriesApi<any> | null>(null)
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
