@@ -195,7 +195,6 @@ export function AdvancedTradingChart({
       },
       timeScale: {
         borderColor: 'rgba(255, 255, 255, 0.2)',
-        textColor: '#ffffff',
         timeVisible: true,
         secondsVisible: false,
       },
