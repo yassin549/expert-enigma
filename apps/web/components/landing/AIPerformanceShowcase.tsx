@@ -183,7 +183,8 @@ export function AIPerformanceShowcase() {
         </h3>
         <div className="grid md:grid-cols-3 gap-6">
           {stats && stats.plans_summary.map((plan, index) => {
-            const PlanIcon = planIcons[plan.risk_profile as keyof typeof planIcons]
+            const PlanIcon = planIcons[plan.risk_profile as keyof typeof planIcons];
+            const planColor = planColors[plan.risk_profile as keyof typeof planColors];
             return (
               <motion.div
                 key={plan.name}
@@ -233,7 +234,7 @@ export function AIPerformanceShowcase() {
                     </div>
                     <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                       <div 
-                        className={`h-full bg-gradient-to-r ${plan.color} transition-all duration-1000`}
+                        className={`h-full bg-gradient-to-r ${planColor} transition-all duration-1000`}
                         style={{ width: `${Math.min((plan.return_pct / 30) * 100, 100)}%` }}
                       />
                     </div>
