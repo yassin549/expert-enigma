@@ -3,7 +3,7 @@ Withdrawal Model - User Payout Requests
 """
 
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Numeric
 from typing import Optional, Dict, Any
 from datetime import datetime
 from decimal import Decimal
@@ -42,22 +42,19 @@ class Withdrawal(SQLModel, table=True):
     
     # Withdrawal Details
     amount_requested: Decimal = Field(
-        max_digits=20,
-        decimal_places=2,
+        sa_column=Column(Numeric(20, 2)),
         description="Amount requested in USD"
     )
     
     amount_approved: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=2,
+        sa_column=Column(Numeric(20, 2)),
         description="Amount approved by admin (may differ from requested)"
     )
     
     amount_sent: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8,
+        sa_column=Column(Numeric(20, 8)),
         description="Amount actually sent in cryptocurrency"
     )
     
@@ -110,14 +107,12 @@ class Withdrawal(SQLModel, table=True):
     # Fees
     network_fee: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8
+        sa_column=Column(Numeric(20, 8))
     )
     
     processing_fee: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=2,
+        sa_column=Column(Numeric(20, 2)),
         description="Platform processing fee"
     )
     
