@@ -182,8 +182,8 @@ export function AIPerformanceShowcase() {
           Live AI Performance by Strategy
         </h3>
         <div className="grid md:grid-cols-3 gap-6">
-          {performanceData.plans.map((plan, index) => {
-            const PlanIcon = plan.icon
+          {stats && stats.plans_summary.map((plan, index) => {
+            const PlanIcon = planIcons[plan.risk_profile as keyof typeof planIcons]
             return (
               <motion.div
                 key={plan.name}
@@ -193,12 +193,12 @@ export function AIPerformanceShowcase() {
               >
                 <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/10 transition-all duration-160">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-3 rounded-full bg-gradient-to-r ${plan.color} bg-opacity-20`}>
+                    <div className={`p-3 rounded-full bg-gradient-to-r ${planColors[plan.risk_profile as keyof typeof planColors]} bg-opacity-20`}>
                       <PlanIcon className="w-6 h-6 text-white" />
                     </div>
                     <div>
                       <h4 className="text-lg font-bold text-white">{plan.name}</h4>
-                      <p className="text-white/60 text-sm">{plan.riskProfile}</p>
+                      <p className="text-white/60 text-sm capitalize">{plan.risk_profile}</p>
                     </div>
                   </div>
 
@@ -206,7 +206,7 @@ export function AIPerformanceShowcase() {
                     <div className="flex justify-between items-center">
                       <span className="text-white/60">Annual Return</span>
                       <span className="text-2xl font-bold text-green-400">
-                        +{plan.return.toFixed(1)}%
+                        +{plan.return_pct.toFixed(1)}%
                       </span>
                     </div>
                     
@@ -229,12 +229,12 @@ export function AIPerformanceShowcase() {
                   <div className="mt-4">
                     <div className="flex justify-between text-sm text-white/60 mb-2">
                       <span>Performance vs Market</span>
-                      <span>+{(plan.return - 7.2).toFixed(1)}%</span>
+                      <span>+{(plan.return_pct - 7.2).toFixed(1)}%</span>
                     </div>
                     <div className="h-2 bg-white/20 rounded-full overflow-hidden">
                       <div 
                         className={`h-full bg-gradient-to-r ${plan.color} transition-all duration-1000`}
-                        style={{ width: `${Math.min((plan.return / 30) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((plan.return_pct / 30) * 100, 100)}%` }}
                       />
                     </div>
                   </div>

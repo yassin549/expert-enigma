@@ -3,7 +3,7 @@ Deposit Model - User Crypto Deposits via NOWPayments
 """
 
 from sqlmodel import SQLModel, Field, Column
-from sqlalchemy import JSON
+from sqlalchemy import JSON, Numeric
 from typing import Optional, Dict, Any
 from datetime import datetime
 from decimal import Decimal
@@ -41,12 +41,12 @@ class Deposit(SQLModel, table=True):
     
     # Deposit Details
     amount: Decimal = Field(
-        decimal_places=8,  # Support crypto precision
+        sa_column=Column(Numeric(20, 8)),
         description="Amount in cryptocurrency"
     )
     
     amount_usd: Decimal = Field(
-        decimal_places=2,
+        sa_column=Column(Numeric(20, 2)),
         description="Amount in USD equivalent"
     )
     
@@ -99,7 +99,7 @@ class Deposit(SQLModel, table=True):
     # Network Fees
     network_fee: Optional[Decimal] = Field(
         default=None,
-        decimal_places=8
+        sa_column=Column(Numeric(20, 8))
     )
     
     # Reconciliation
