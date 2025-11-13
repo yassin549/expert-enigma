@@ -89,40 +89,62 @@ export default function DepositPage() {
     const currentStepIndex = steps.findIndex(step => step.key === currentStep)
 
     return (
-      <div className="flex items-center justify-center mb-8">
-        {steps.map((step, index) => (
-          <div key={step.key} className="flex items-center">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
-              index <= currentStepIndex 
-                ? 'bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white' 
-                : 'bg-white/10 text-white/60'
-            }`}>
-              {step.number}
+      <div className="overflow-x-auto">
+        <div className="flex items-center justify-center md:justify-between gap-3 md:gap-6 px-2 min-w-max">
+          {steps.map((step, index) => (
+            <div key={step.key} className="flex items-center">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors duration-200 ${
+                  index <= currentStepIndex
+                    ? 'bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white shadow-[0_10px_30px_rgba(59,130,246,0.35)]'
+                    : 'bg-white/10 text-white/60'
+                }`}
+              >
+                {step.number}
+              </div>
+              <span
+                className={`ml-2 text-sm whitespace-nowrap transition-colors duration-200 ${
+                  index <= currentStepIndex ? 'text-white' : 'text-white/60'
+                }`}
+              >
+                {step.label}
+              </span>
+              {index < steps.length - 1 && (
+                <div
+                  className={`w-10 sm:w-14 h-px mx-3 sm:mx-4 transition-colors duration-200 ${
+                    index < currentStepIndex ? 'bg-brand-blue-500' : 'bg-white/20'
+                  }`}
+                />
+              )}
             </div>
-            <span className={`ml-2 text-sm ${
-              index <= currentStepIndex ? 'text-white' : 'text-white/60'
-            }`}>
-              {step.label}
-            </span>
-            {index < steps.length - 1 && (
-              <div className={`w-8 h-px mx-4 ${
-                index < currentStepIndex ? 'bg-brand-blue-500' : 'bg-white/20'
-              }`} />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-blue-900 via-brand-purple-900 to-black">
-      {/* Header */}
-      <header className="border-b border-white/10 backdrop-blur-xl bg-white/5">
-        <nav className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+    <div className="relative min-h-screen overflow-hidden bg-[#03040e] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(168,85,247,0.18),transparent_55%)]" />
+      <div className="background-grid" />
+      <div className="floating-blob -top-32 -left-24" />
+      <div
+        className="floating-blob bottom-[-25%] right-[-10%]"
+        style={{
+          animationDelay: '4s',
+          background:
+            'radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.45), transparent 60%), radial-gradient(circle at 75% 75%, rgba(14, 165, 233, 0.35), transparent 55%)'
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="border-b border-white/10 backdrop-blur-xl bg-white/5">
+          <nav className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Link href="/dashboard">
                 <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Dashboard
@@ -144,8 +166,8 @@ export default function DepositPage() {
         </nav>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {renderStepIndicator()}
+      <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl w-full pb-24">
+        <div className="mb-10">{renderStepIndicator()}</div>
 
         {/* Step 1: Amount Selection */}
         {currentStep === 'amount' && (
@@ -154,7 +176,7 @@ export default function DepositPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Card className="p-8 bg-white/5 backdrop-blur-xl border-white/10">
+            <Card className="p-8 bg-white/10 backdrop-blur-2xl border-white/10 shadow-[0_25px_60px_rgba(15,23,42,0.55)]">
               <h2 className="text-2xl font-bold text-white mb-2">Select Deposit Amount</h2>
               <p className="text-white/70 mb-8">Choose how much you'd like to deposit to start trading</p>
 
@@ -223,7 +245,7 @@ export default function DepositPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Card className="p-8 bg-white/5 backdrop-blur-xl border-white/10">
+            <Card className="p-8 bg-white/10 backdrop-blur-2xl border-white/10 shadow-[0_25px_60px_rgba(15,23,42,0.55)]">
               <h2 className="text-2xl font-bold text-white mb-2">Select Cryptocurrency</h2>
               <p className="text-white/70 mb-8">
                 Choose your preferred cryptocurrency for depositing ${getCurrentAmount().toFixed(2)}
@@ -238,7 +260,7 @@ export default function DepositPage() {
                     transition={{ delay: index * 0.1 }}
                   >
                     <Card
-                      className="p-4 bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer transition-all duration-160"
+                      className="p-4 bg-white/10 border-white/10 hover:bg-white/15 cursor-pointer transition-all duration-200"
                       onClick={() => handleCryptoSelect(crypto)}
                     >
                       <div className="flex items-center justify-between">
@@ -288,7 +310,7 @@ export default function DepositPage() {
               <div className="grid md:grid-cols-2 gap-8">
                 {/* Payment Details */}
                 <div>
-                  <div className="bg-white/10 rounded-lg p-6 mb-6">
+                  <div className="bg-white/10 rounded-lg p-6 mb-6 border border-white/10">
                     <h3 className="text-lg font-semibold text-white mb-4">Payment Details</h3>
                     
                     <div className="space-y-4">
@@ -353,7 +375,7 @@ export default function DepositPage() {
 
                 {/* QR Code */}
                 <div className="flex flex-col items-center">
-                  <div className="bg-white p-6 rounded-lg mb-4">
+                  <div className="bg-white p-6 rounded-lg mb-4 shadow-[0_20px_40px_rgba(15,23,42,0.35)]">
                     <QrCode className="w-48 h-48 text-black" />
                   </div>
                   <p className="text-white/60 text-sm text-center">
@@ -362,7 +384,7 @@ export default function DepositPage() {
                 </div>
               </div>
 
-              <div className="flex gap-4 mt-8">
+              <div className="flex flex-col sm:flex-row gap-4 mt-8">
                 <Button
                   onClick={() => setCurrentStep('crypto')}
                   variant="outline"
@@ -388,7 +410,7 @@ export default function DepositPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Card className="p-8 bg-white/5 backdrop-blur-xl border-white/10 text-center">
+            <Card className="p-8 bg-white/10 backdrop-blur-2xl border-white/10 text-center shadow-[0_25px_60px_rgba(15,23,42,0.55)]">
               <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Clock className="w-8 h-8 text-white" />
               </div>
@@ -425,7 +447,7 @@ export default function DepositPage() {
                 This usually takes {selectedCrypto?.processingTime}.
               </p>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/dashboard" className="flex-1">
                   <Button className="w-full bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90">
                     Return to Dashboard
@@ -443,6 +465,7 @@ export default function DepositPage() {
             </Card>
           </motion.div>
         )}
+        </div>
       </div>
     </div>
   )
