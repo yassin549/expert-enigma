@@ -116,6 +116,37 @@
     animation: gridFloat 24s linear infinite;
   }
 
+  .cosmic-background {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 120%, rgba(28, 78, 216, 0.3) 0%, rgba(3, 4, 14, 0.05) 55%, rgba(3, 4, 14, 0.8) 75%)
+        , radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.55) 0%, transparent 55%)
+        , radial-gradient(circle at 70% 25%, rgba(234, 179, 8, 0.45) 0%, transparent 60%)
+        , radial-gradient(ellipse at 50% 95%, rgba(8, 47, 73, 0.65) 0%, rgba(3, 4, 14, 0.9) 65%)
+        , linear-gradient(180deg, rgba(3, 4, 14, 0.35) 0%, rgba(3, 4, 14, 0.85) 55%, rgba(2, 6, 23, 0.95) 100%);
+    filter: saturate(120%);
+    animation: cosmicZoom 32s ease-in-out infinite;
+    transform-origin: center;
+    opacity: 0.85;
+  }
+
+  .cosmic-background::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 60%),
+      radial-gradient(1px 1px at 30% 80%, rgba(255, 255, 255, 0.5) 0%, transparent 55%),
+      radial-gradient(1px 1px at 65% 35%, rgba(255, 255, 255, 0.6) 0%, transparent 55%),
+      radial-gradient(1px 1px at 85% 65%, rgba(255, 255, 255, 0.65) 0%, transparent 60%),
+      radial-gradient(2px 2px at 45% 55%, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+    background-size: 220px 220px;
+    opacity: 0.35;
+    mix-blend-mode: screen;
+    animation: starTwinkle 18s ease-in-out infinite;
+  }
+
   .floating-blob {
     position: absolute;
     width: 420px;
@@ -192,5 +223,26 @@
   }
   100% {
     transform: translate3d(-10%, -10%, 0) scale(1);
+  }
+}
+
+@keyframes cosmicZoom {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes starTwinkle {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.55;
   }
 }
