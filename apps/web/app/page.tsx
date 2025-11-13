@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { ArrowRight, Shield, TrendingUp, Zap, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, Shield, TrendingUp, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -11,93 +11,97 @@ import { AIPerformanceShowcase } from '@/components/landing/AIPerformanceShowcas
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-blue-900 via-brand-purple-900 to-black">
-      {/* Header */}
-      <header className="border-b border-white/10 backdrop-blur-xl bg-white/5">
-        <nav className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="h-10 w-10 bg-gradient-to-br from-brand-blue-500 to-brand-purple-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">T</span>
+    <div className="relative min-h-screen overflow-hidden bg-[#03040e] text-white">
+      {/* Animated background */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(168,85,247,0.18),transparent_55%)]" />
+      <div className="background-grid" />
+      <div className="floating-blob -top-40 -left-32" />
+      <div className="floating-blob bottom-[-30%] right-[-15%]" style={{ animationDelay: '6s', background: 'radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.45), transparent 60%), radial-gradient(circle at 70% 70%, rgba(14, 165, 233, 0.35), transparent 55%)' }} />
+
+      <div className="relative z-10 flex flex-col">
+        {/* Floating Navigation */}
+        <div className="px-4 pt-6 sm:pt-10">
+          <nav className="max-w-6xl mx-auto flex items-center justify-between rounded-full bg-white/10 backdrop-blur-2xl border border-white/10 shadow-[0_25px_80px_rgba(15,23,42,0.55)] px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 sm:h-10 sm:w-10 bg-gradient-to-br from-brand-blue-500 to-brand-purple-500 rounded-2xl flex items-center justify-center shadow-[0_10px_30px_rgba(59,130,246,0.45)]">
+                <span className="text-white font-bold text-lg sm:text-xl">T</span>
               </div>
-              <span className="text-white font-bold text-xl">Topcoin</span>
+              <span className="text-white font-semibold text-lg sm:text-xl tracking-tight">Topcoin</span>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 text-sm sm:text-base">
               <Link href="/auth/signin">
-                <Button variant="ghost" className="text-white hover:bg-white/10">
+                <Button size="sm" variant="ghost" className="text-white/80 hover:text-white hover:bg-white/10">
                   Sign In
                 </Button>
               </Link>
               <Link href="/auth/signup">
-                <Button className="bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90">
+                <Button size="sm" className="rounded-full bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90 px-4 sm:px-6">
                   Get Started
                 </Button>
               </Link>
             </div>
-          </div>
-        </nav>
-      </header>
+          </nav>
+        </div>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center max-w-5xl mx-auto"
-        >
-          {/* CMF/MSB Badges */}
-          <div className="flex justify-center gap-4 mb-8">
-            <div className="px-6 py-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-md rounded-full border border-green-500/30">
-              <p className="text-green-300 font-medium">
-                🏛️ CMF License: CMF-2024-001
-              </p>
+        {/* Hero Section */}
+        <section className="container mx-auto px-4 pt-24 pb-20 sm:pt-32">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-center max-w-4xl mx-auto"
+          >
+            {/* CMF/MSB Badges */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8">
+              <div className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2 bg-emerald-500/10 border border-emerald-400/30 rounded-full text-emerald-200 text-xs sm:text-sm font-medium shadow-[0_15px_40px_rgba(16,185,129,0.25)]">
+                <Shield className="h-4 w-4 text-emerald-300/90" />
+                <span>CMF License: CMF-2024-001</span>
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2 bg-sky-500/10 border border-sky-400/30 rounded-full text-sky-200 text-xs sm:text-sm font-medium shadow-[0_15px_40px_rgba(56,189,248,0.25)]">
+                <Shield className="h-4 w-4 text-sky-300/90" />
+                <span>MSB Registration: MSB-2024-TOPCOIN-001</span>
+              </div>
             </div>
-            <div className="px-6 py-3 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 backdrop-blur-md rounded-full border border-blue-500/30">
-              <p className="text-blue-300 font-medium">
-                🔒 MSB Registration: MSB-2024-TOPCOIN-001
-              </p>
+
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+              The Future of{' '}
+              <span className="bg-gradient-to-r from-brand-blue-400 to-brand-purple-400 bg-clip-text text-transparent">
+                Trading
+              </span>
+            </h1>
+
+            <p className="text-base sm:text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto">
+              Access professional trading tools without opening a broker account. 
+              Fully regulated, built for high-performance execution.
+            </p>
+
+            {/* Live Stats */}
+            <div className="mb-12">
+              <LiveStats />
             </div>
-          </div>
 
-          <h1 className="text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
-            The Future of{' '}
-            <span className="bg-gradient-to-r from-brand-blue-400 to-brand-purple-400 bg-clip-text text-transparent">
-              Trading
-            </span>
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-white/70 mb-8 max-w-3xl mx-auto">
-            Access professional trading tools without opening a broker account. 
-            Fully regulated, built for high-performance execution.
-          </p>
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Link href="/auth/signup">
+                <Button size="lg" className="bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90 text-base sm:text-lg px-8 py-5">
+                  Start Trading Now
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+              </Link>
+              <Link href="/ai-plans">
+                <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 text-base sm:text-lg px-8 py-5">
+                  Explore AI Plans
+                </Button>
+              </Link>
+            </div>
 
-          {/* Live Stats */}
-          <div className="mb-12">
-            <LiveStats />
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link href="/auth/signup">
-              <Button size="lg" className="bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90 text-lg px-8 py-6">
-                Start Trading Now
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
-            <Link href="/ai-plans">
-              <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 text-lg px-8 py-6">
-                Explore AI Plans
-              </Button>
-            </Link>
-          </div>
-
-          <p className="text-sm text-white/50 mt-6">
-            ⚠️ Trading involves substantial risk of loss. Trade responsibly.
-          </p>
-        </motion.div>
-      </section>
+            <p className="text-xs sm:text-sm text-white/50 mt-6">
+              ⚠️ Trading involves substantial risk of loss. Trade responsibly.
+            </p>
+          </motion.div>
+        </section>
 
       {/* Market Overview Section */}
       <MarketOverview />
@@ -131,10 +135,10 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 + index * 0.1 }}
             >
-              <Card className="p-8 bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/10 transition-all duration-160 h-full">
-                <feature.icon className="w-12 h-12 text-brand-blue-400 mb-4" />
-                <h3 className="text-2xl font-bold text-white mb-3">{feature.title}</h3>
-                <p className="text-white/70">{feature.description}</p>
+              <Card className="p-8 bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-2xl transition-all duration-160 h-full shadow-[0_25px_70px_rgba(15,23,42,0.45)]">
+                <feature.icon className="w-10 h-10 text-brand-blue-300 mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
+                <p className="text-white/70 text-sm">{feature.description}</p>
               </Card>
             </motion.div>
           ))}
@@ -142,12 +146,12 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-black/50 backdrop-blur-xl">
+      <footer className="border-t border-white/10 bg-black/40 backdrop-blur-2xl">
         <div className="container mx-auto px-4 py-12">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <h4 className="text-white font-bold mb-4">Topcoin</h4>
-              <p className="text-white/60 text-sm">
+              <p className="text-white/60 text-xs sm:text-sm">
                 The future of trading. CMF licensed and MSB registered.
               </p>
             </div>
@@ -182,6 +186,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   )
 }

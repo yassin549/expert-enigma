@@ -102,6 +102,32 @@
   .scrollbar-custom::-webkit-scrollbar-thumb {
     @apply bg-white/20 rounded-full hover:bg-white/30;
   }
+
+  .background-grid {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-size: 160px 160px;
+    background-image:
+      linear-gradient(transparent 79%, rgba(120, 115, 245, 0.15) 80%),
+      linear-gradient(90deg, transparent 79%, rgba(120, 115, 245, 0.15) 80%);
+    opacity: 0.25;
+    mix-blend-mode: screen;
+    animation: gridFloat 24s linear infinite;
+  }
+
+  .floating-blob {
+    position: absolute;
+    width: 420px;
+    height: 420px;
+    border-radius: 9999px;
+    filter: blur(80px);
+    opacity: 0.35;
+    mix-blend-mode: screen;
+    animation: blobFloat 18s ease-in-out infinite;
+    background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.45), transparent 60%),
+                radial-gradient(circle at 70% 70%, rgba(236, 72, 153, 0.35), transparent 55%);
+  }
 }
 
 /* Animation for page transitions */
@@ -143,4 +169,28 @@
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes gridFloat {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-40px, -20px, 0) scale(1.02);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes blobFloat {
+  0% {
+    transform: translate3d(-10%, -10%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(10%, 15%, 0) scale(1.15);
+  }
+  100% {
+    transform: translate3d(-10%, -10%, 0) scale(1);
+  }
 }
