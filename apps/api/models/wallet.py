@@ -40,8 +40,6 @@ class Wallet(SQLModel, table=True):
     # Balance
     balance: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
-        decimal_places=2,
         description="Current wallet balance"
     )
     
@@ -50,16 +48,12 @@ class Wallet(SQLModel, table=True):
     # Reserved for pending withdrawals
     reserved_amount: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
-        decimal_places=2,
         description="Amount reserved for pending withdrawals"
     )
     
     # Available balance
     available_balance: Decimal = Field(
         default=Decimal("0.00"),
-        max_digits=20,
-        decimal_places=2,
         description="Balance - Reserved = Available"
     )
     

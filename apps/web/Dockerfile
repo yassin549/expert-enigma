@@ -1,43 +1,54 @@
-# Railway-optimized Next.js Dockerfile
-FROM node:18-alpine
+# Railway-optimized Next.js Dockerfile with dedicated development and production stages
 
-# Set working directory
+# Base dependencies stage
+FROM node:18-alpine AS base
+
 WORKDIR /app
 
-# Install dependencies
 RUN apk add --no-cache libc6-compat
 
-# Copy package.json
-COPY package.json ./
+COPY package*.json ./
 
-# Install dependencies
 RUN npm install
 
-# Copy source code
+# Development stage used by docker-compose for local development
+FROM base AS development
+
+ENV NODE_ENV=development
+
 COPY . .
 
-# Set environment variables
+# Production build stage
+FROM base AS builder
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build the application
+COPY . .
+
 RUN npm run build
 
-# Create non-root user
+# Production runtime stage (Railway default)
+FROM node:18-alpine AS production
+
+WORKDIR /app
+
+RUN apk add --no-cache libc6-compat
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=builder /app ./
+
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Change ownership of the app directory
 RUN chown -R nextjs:nodejs /app
 
-# Switch to non-root user
 USER nextjs
 
-# Expose port (Railway will set PORT env var)
 EXPOSE $PORT
 
-# Set hostname
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application
 CMD ["npm", "start"]

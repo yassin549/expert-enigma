@@ -356,9 +356,9 @@ export default function TradePage() {
           <div className="flex gap-2">
             <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-yellow-300 font-medium text-sm">Simulated Trading</p>
+              <p className="text-yellow-300 font-medium text-sm">Risk Warning</p>
               <p className="text-yellow-200/80 text-xs">
-                All trades are simulated. No real money is at risk.
+                Trading involves substantial risk of loss. Trade responsibly.
               </p>
             </div>
           </div>

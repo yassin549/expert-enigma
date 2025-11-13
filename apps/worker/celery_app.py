@@ -23,10 +23,9 @@ app = Celery(
     broker=CELERY_BROKER_URL,
     backend=CELERY_RESULT_BACKEND,
     include=[
+        # Only include implemented task modules to avoid import errors
         "worker.tasks.deposits",
-        "worker.tasks.notifications",
-        "worker.tasks.reconciliation",
-    ]
+    ],
 )
 
 # Celery configuration
@@ -50,21 +49,7 @@ app.conf.beat_schedule = {
         "task": "worker.tasks.deposits.check_pending_deposits",
         "schedule": 120.0,  # Every 2 minutes
     },
-    # Daily reconciliation at 1 AM UTC
-    "daily-reconciliation": {
-        "task": "worker.tasks.reconciliation.run_daily_reconciliation",
-        "schedule": crontab(hour=1, minute=0),
-    },
-    # Clean up old notifications every hour
-    "cleanup-notifications": {
-        "task": "worker.tasks.notifications.cleanup_old_notifications",
-        "schedule": crontab(minute=0),  # Every hour
-    },
-    # Update cached statistics every 5 minutes
-    "update-statistics": {
-        "task": "worker.tasks.statistics.update_platform_statistics",
-        "schedule": 300.0,  # Every 5 minutes
-    },
+    # TODO: Add reconciliation, notification cleanup, and statistics tasks when modules are implemented
 }
 
 logger.info("✅ Celery app initialized successfully")

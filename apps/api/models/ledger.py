@@ -55,14 +55,10 @@ class LedgerEntry(SQLModel, table=True):
     entry_type: EntryType = Field(index=True)
     
     amount: Decimal = Field(
-        max_digits=20,
-        decimal_places=2,
         description="Amount (positive = credit, negative = debit)"
     )
     
     balance_after: Decimal = Field(
-        max_digits=20,
-        decimal_places=2,
         description="Account virtual_balance after this entry"
     )
     

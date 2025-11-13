@@ -58,61 +58,45 @@ class Order(SQLModel, table=True):
     type: OrderType = Field(index=True)
     
     size: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Order size/quantity"
     )
     
     # Prices
     price: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8,
         description="Limit price (for limit orders)"
     )
     
     stop_price: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8,
         description="Stop price (for stop orders)"
     )
     
     # Fill Details
     fill_price: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8,
         description="Actual fill price"
     )
     
     filled_size: Decimal = Field(
         default=Decimal("0"),
-        max_digits=20,
-        decimal_places=8,
         description="Size filled so far"
     )
     
     # Slippage & Fees
     slippage: Decimal = Field(
         default=Decimal("0"),
-        max_digits=20,
-        decimal_places=8,
         description="Slippage in price"
     )
     
     fee: Decimal = Field(
         default=Decimal("0"),
-        max_digits=20,
-        decimal_places=2,
         description="Trading fee"
     )
     
     # P&L (for closed positions)
     pnl: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=2,
         description="Realized P&L from this order"
     )
     
@@ -128,15 +112,11 @@ class Order(SQLModel, table=True):
     # Stop Loss / Take Profit
     sl_price: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8,
         description="Stop loss price"
     )
     
     tp_price: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8,
         description="Take profit price"
     )
     
@@ -146,8 +126,6 @@ class Order(SQLModel, table=True):
     # Margin
     margin_required: Decimal = Field(
         default=Decimal("0"),
-        max_digits=20,
-        decimal_places=2
     )
     
     # Timestamps

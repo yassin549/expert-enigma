@@ -43,34 +43,24 @@ class Candle(SQLModel, table=True):
     
     # OHLC Prices
     open: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Open price"
     )
     
     high: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="High price"
     )
     
     low: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Low price"
     )
     
     close: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Close price"
     )
     
     # Volume
     volume: Decimal = Field(
         default=Decimal("0"),
-        max_digits=30,
-        decimal_places=8,
         description="Trading volume"
     )
     

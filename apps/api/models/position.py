@@ -47,58 +47,42 @@ class Position(SQLModel, table=True):
     )
     
     size: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Position size"
     )
     
     # Prices
     entry_price: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Average entry price"
     )
     
     current_price: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Current market price (updated real-time)"
     )
     
     # P&L
     unrealized_pnl: Decimal = Field(
         default=Decimal("0"),
-        max_digits=20,
-        decimal_places=2,
         description="Unrealized profit/loss"
     )
     
     unrealized_pnl_pct: Decimal = Field(
         default=Decimal("0"),
-        max_digits=10,
-        decimal_places=2,
         description="Unrealized P&L percentage"
     )
     
     realized_pnl: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=2,
         description="Realized P&L (when closed)"
     )
     
     # Risk Management
     sl_price: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8,
         description="Stop loss price"
     )
     
     tp_price: Optional[Decimal] = Field(
         default=None,
-        max_digits=20,
-        decimal_places=8,
         description="Take profit price"
     )
     
@@ -107,8 +91,6 @@ class Position(SQLModel, table=True):
     
     margin_used: Decimal = Field(
         default=Decimal("0"),
-        max_digits=20,
-        decimal_places=2
     )
     
     # Status

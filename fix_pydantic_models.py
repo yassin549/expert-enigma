@@ -8,39 +8,42 @@ import os
 import re
 from pathlib import Path
 
-def fix_max_digits_in_file(file_path):
-    """Remove max_digits constraints from a single file"""
+CONSTRAINTS = ["max_digits", "decimal_places"]
+
+
+def fix_constraints_in_file(file_path):
+    """Remove unsupported Pydantic constraints from a single file"""
     print(f"Processing: {file_path}")
-    
+
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
-    
-    # Pattern to match Field definitions with max_digits
-    # This will match multi-line Field definitions
-    pattern = r'(\w+:\s*[^=]+\s*=\s*Field\(\s*(?:[^)]*?)?)max_digits=\d+,?\s*([^)]*?\))'
-    
-    # Replace max_digits with nothing, handling comma cleanup
-    def replace_max_digits(match):
-        before = match.group(1)
-        after = match.group(2)
-        
-        # Clean up any double commas or trailing commas before closing paren
-        after = re.sub(r',\s*,', ',', after)  # Remove double commas
-        after = re.sub(r',\s*\)', ')', after)  # Remove trailing comma before )
-        
-        return before + after
-    
-    # Apply the replacement
-    new_content = re.sub(pattern, replace_max_digits, content, flags=re.MULTILINE | re.DOTALL)
-    
-    # Additional cleanup for standalone max_digits lines
-    new_content = re.sub(r'\s*max_digits=\d+,?\s*\n', '\n', new_content)
-    
-    # Write back if changed
+
+    new_content = content
+
+    for constraint in CONSTRAINTS:
+        # Pattern to match Field definitions with the constraint (multi-line aware)
+        pattern = rf'(\w+:\s*[^=]+\s*=\s*Field\(\s*(?:[^)]*?)?){constraint}=\d+,?\s*([^)]*?\))'
+
+        def replace_constraint(match):
+            before = match.group(1)
+            after = match.group(2)
+
+            # Clean up any double commas or trailing commas before closing paren
+            cleaned_after = re.sub(r',\s*,', ',', after)
+            cleaned_after = re.sub(r',\s*\)', ')', cleaned_after)
+
+            return before + cleaned_after
+
+        new_content = re.sub(pattern, replace_constraint, new_content, flags=re.MULTILINE | re.DOTALL)
+
+        # Remove standalone lines that only contain the constraint
+        line_pattern = rf'\s*{constraint}=\d+,?\s*\n'
+        new_content = re.sub(line_pattern, '\n', new_content)
+
     if new_content != content:
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(new_content)
-        print(f"  ✅ Fixed max_digits constraints")
+        print(f"  ✅ Fixed constraints: {', '.join(CONSTRAINTS)}")
         return True
     else:
         print(f"  ⏭️ No changes needed")
@@ -66,7 +69,7 @@ def main():
             continue
             
         total_files += 1
-        if fix_max_digits_in_file(py_file):
+        if fix_constraints_in_file(py_file):
             fixed_files += 1
     
     print("=" * 60)

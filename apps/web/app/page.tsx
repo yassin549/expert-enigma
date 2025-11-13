@@ -22,18 +22,6 @@ export default function LandingPage() {
               </div>
               <span className="text-white font-bold text-xl">Topcoin</span>
             </div>
-            
-            {/* Regulatory Badges */}
-            <div className="hidden md:flex items-center gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20">
-                <Shield className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-white/90">CMF Licensed</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20">
-                <Shield className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-white/90">MSB Registered</span>
-              </div>
-            </div>
 
             <div className="flex items-center gap-4">
               <Link href="/auth/signin">
@@ -76,13 +64,13 @@ export default function LandingPage() {
           <h1 className="text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
             The Future of{' '}
             <span className="bg-gradient-to-r from-brand-blue-400 to-brand-purple-400 bg-clip-text text-transparent">
-              Simulated Trading
+              Trading
             </span>
           </h1>
           
           <p className="text-xl md:text-2xl text-white/70 mb-8 max-w-3xl mx-auto">
             Access professional trading tools without opening a broker account. 
-            Fully regulated, fully simulated, fully powerful.
+            Fully regulated, built for high-performance execution.
           </p>
 
           {/* Live Stats */}
@@ -106,7 +94,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-sm text-white/50 mt-6">
-            ⚠️ Trading involves substantial risk of loss. All trading is simulated.
+            ⚠️ Trading involves substantial risk of loss. Trade responsibly.
           </p>
         </motion.div>
       </section>
@@ -160,7 +148,7 @@ export default function LandingPage() {
             <div>
               <h4 className="text-white font-bold mb-4">Topcoin</h4>
               <p className="text-white/60 text-sm">
-                The future of simulated trading. CMF licensed and MSB registered.
+                The future of trading. CMF licensed and MSB registered.
               </p>
             </div>
             <div>
@@ -190,7 +178,7 @@ export default function LandingPage() {
           </div>
           <div className="border-t border-white/10 mt-8 pt-8 text-center text-white/60 text-sm">
             <p>© 2025 Topcoin. All rights reserved. CMF-2024-001 | MSB-2024-TOPCOIN-001</p>
-            <p className="mt-2">Trading involves substantial risk of loss. All trading is simulated.</p>
+            <p className="mt-2">Trading involves substantial risk of loss. Trade responsibly.</p>
           </div>
         </div>
       </footer>

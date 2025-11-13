@@ -44,35 +44,25 @@ class Instrument(SQLModel, table=True):
     
     # Trading Parameters
     min_size: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Minimum order size"
     )
     
     max_size: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Maximum order size"
     )
     
     tick_size: Decimal = Field(
-        max_digits=20,
-        decimal_places=8,
         description="Minimum price increment"
     )
     
     # Spread & Commission
     spread_pct: Decimal = Field(
         default=Decimal("0.001"),
-        max_digits=10,
-        decimal_places=6,
         description="Spread percentage (e.g., 0.001 = 0.1%)"
     )
     
     commission_pct: Decimal = Field(
         default=Decimal("0.001"),
-        max_digits=10,
-        decimal_places=6,
         description="Commission percentage"
     )
     

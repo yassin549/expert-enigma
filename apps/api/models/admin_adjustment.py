@@ -55,21 +55,15 @@ class AdminAdjustment(SQLModel, table=True):
     adjustment_type: AdjustmentType = Field(index=True)
     
     amount: Decimal = Field(
-        max_digits=20,
-        decimal_places=2,
         description="Amount adjusted (positive for credit, negative for debit)"
     )
     
     # Audit Trail - Before/After Snapshots
     previous_balance: Decimal = Field(
-        max_digits=20,
-        decimal_places=2,
         description="Virtual balance before adjustment"
     )
     
     new_balance: Decimal = Field(
-        max_digits=20,
-        decimal_places=2,
         description="Virtual balance after adjustment"
     )
     

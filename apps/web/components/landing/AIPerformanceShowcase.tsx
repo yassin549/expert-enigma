@@ -45,6 +45,36 @@ const planColors = {
   aggressive: 'from-purple-500 to-pink-500'
 }
 
+const FALLBACK_STATS: InvestmentStats = {
+  total_aum: 250000000,
+  total_investors: 10562,
+  average_return_pct: 17.4,
+  best_performing_plan: 'Aggressive AI Plan',
+  plans_summary: [
+    {
+      name: 'Conservative AI Plan',
+      risk_profile: 'conservative',
+      return_pct: 8.4,
+      aum: 45000000,
+      investors: 2847
+    },
+    {
+      name: 'Balanced AI Plan',
+      risk_profile: 'balanced',
+      return_pct: 15.2,
+      aum: 89000000,
+      investors: 4521
+    },
+    {
+      name: 'Aggressive AI Plan',
+      risk_profile: 'aggressive',
+      return_pct: 28.7,
+      aum: 116000000,
+      investors: 3194
+    }
+  ]
+}
+
 export function AIPerformanceShowcase() {
   const [stats, setStats] = useState<InvestmentStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,40 +89,15 @@ export function AIPerformanceShowcase() {
       if (response.ok) {
         const data = await response.json()
         setStats(data)
+        return
       }
+      console.warn('Using fallback investment stats. API responded with status:', response.status)
     } catch (error) {
       console.error('Failed to fetch investment stats:', error)
-      // Fallback to mock data
-      setStats({
-        total_aum: 250000000,
-        total_investors: 10562,
-        average_return_pct: 17.4,
-        best_performing_plan: 'Aggressive AI Plan',
-        plans_summary: [
-          {
-            name: 'Conservative AI Plan',
-            risk_profile: 'conservative',
-            return_pct: 8.4,
-            aum: 45000000,
-            investors: 2847
-          },
-          {
-            name: 'Balanced AI Plan',
-            risk_profile: 'balanced',
-            return_pct: 15.2,
-            aum: 89000000,
-            investors: 4521
-          },
-          {
-            name: 'Aggressive AI Plan',
-            risk_profile: 'aggressive',
-            return_pct: 28.7,
-            aum: 116000000,
-            investors: 3194
-          }
-        ]
-      })
     } finally {
+      if (!stats) {
+        setStats(FALLBACK_STATS)
+      }
       setLoading(false)
     }
   }

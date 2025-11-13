@@ -84,7 +84,7 @@ class Audit(SQLModel, table=True):
     
     # Changes (before/after diff)
     diff: Dict[str, Any] = Field(
-        default={},
+        default_factory=dict,
         sa_column=Column(JSON),
         description="Before/after changes"
     )
@@ -108,8 +108,8 @@ class Audit(SQLModel, table=True):
     )
     
     # Additional Metadata
-    metadata: Dict[str, Any] = Field(
-        default={},
+    extra_metadata: Dict[str, Any] = Field(
+        default_factory=dict,
         sa_column=Column(JSON)
     )
     
