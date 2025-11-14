@@ -12,26 +12,9 @@ import { AIPerformanceShowcase } from '@/components/landing/AIPerformanceShowcas
 export default function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#03040e] text-white">
-      {/* AI solar-system background */}
-      <div className="solar-system-background">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.14),transparent_65%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(76,29,149,0.16),transparent_60%)]" />
-        <div className="solar-system-stars" />
-        <div className="solar-system-haze" />
-        <div className="solar-system-sun" />
-        <div className="solar-system-ai-ring" />
-        <div className="solar-system-orbit orbit-one">
-          <div className="planet planet-mercury" />
-        </div>
-        <div className="solar-system-orbit orbit-two">
-          <div className="planet planet-nebula" />
-        </div>
-        <div className="solar-system-orbit orbit-three">
-          <div className="planet planet-saturn" />
-        </div>
-        <div className="solar-system-mist" />
-        <div className="solar-system-shooting-star" />
-      </div>
+      {/* AI generated cosmic background */}
+      <div className="galaxy-backdrop" aria-hidden />
+      <div className="galaxy-overlay" aria-hidden />
 
       <div className="relative z-10 flex flex-col">
         {/* Floating Navigation */}

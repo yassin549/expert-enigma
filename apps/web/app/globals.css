@@ -342,8 +342,35 @@
   animation: shootingStar 9s linear infinite;
 }
 
+.galaxy-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-color: #03040e;
+  background-image:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.25), rgba(2, 6, 23, 0.75)),
+    image-set(
+      url('/images/ai-galaxy.webp') type('image/webp'),
+      url('/images/ai-galaxy.webp') 1x
+    );
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  filter: saturate(120%) brightness(1.05);
+}
 
-
+.galaxy-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.25), transparent 55%),
+    radial-gradient(circle at 80% 35%, rgba(248, 250, 252, 0.15), transparent 60%),
+    linear-gradient(180deg, rgba(1, 6, 22, 0.65) 0%, rgba(1, 10, 24, 0.35) 45%, rgba(3, 7, 18, 0.85) 100%);
+  mix-blend-mode: screen;
 }
 
 /* Animation for page transitions */
