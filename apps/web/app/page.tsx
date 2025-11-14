@@ -12,20 +12,26 @@ import { AIPerformanceShowcase } from '@/components/landing/AIPerformanceShowcas
 export default function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#03040e] text-white">
-      {/* Animated cosmic background */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_60%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(76,29,149,0.18),transparent_55%)]" />
-      <div className="cosmic-background" />
-      <div className="floating-blob -top-52 -left-32" style={{ animationDuration: '26s' }} />
-      <div
-        className="floating-blob bottom-[-35%] right-[-20%]"
-        style={{
-          animationDelay: '8s',
-          animationDuration: '28s',
-          background:
-            'radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.5), transparent 60%), radial-gradient(circle at 75% 75%, rgba(251, 191, 36, 0.35), transparent 55%)'
-        }}
-      />
+      {/* AI solar-system background */}
+      <div className="solar-system-background">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.14),transparent_65%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(76,29,149,0.16),transparent_60%)]" />
+        <div className="solar-system-stars" />
+        <div className="solar-system-haze" />
+        <div className="solar-system-sun" />
+        <div className="solar-system-ai-ring" />
+        <div className="solar-system-orbit orbit-one">
+          <div className="planet planet-mercury" />
+        </div>
+        <div className="solar-system-orbit orbit-two">
+          <div className="planet planet-nebula" />
+        </div>
+        <div className="solar-system-orbit orbit-three">
+          <div className="planet planet-saturn" />
+        </div>
+        <div className="solar-system-mist" />
+        <div className="solar-system-shooting-star" />
+      </div>
 
       <div className="relative z-10 flex flex-col">
         {/* Floating Navigation */}

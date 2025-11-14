@@ -159,6 +159,191 @@
     background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.4), transparent 60%),
                 radial-gradient(circle at 70% 70%, rgba(236, 72, 153, 0.3), transparent 55%);
   }
+
+.solar-system-background {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(14, 165, 233, 0.18), transparent 60%),
+    radial-gradient(circle at 70% 82%, rgba(168, 85, 247, 0.22), transparent 62%),
+    radial-gradient(circle at 20% 80%, rgba(253, 224, 71, 0.15), transparent 65%),
+    linear-gradient(180deg, rgba(1, 4, 12, 0.95) 0%, rgba(2, 6, 23, 0.9) 60%, rgba(3, 7, 18, 1) 100%);
+  filter: saturate(115%);
+}
+
+.solar-system-background::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle, rgba(59, 130, 246, 0.08) 10%, transparent 55%),
+    conic-gradient(from 120deg, rgba(99, 102, 241, 0.05), transparent 35%);
+  animation: auroraDrift 36s ease-in-out infinite;
+}
+
+.solar-system-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 60%),
+    radial-gradient(1px 1px at 45% 75%, rgba(255, 255, 255, 0.4) 0%, transparent 65%),
+    radial-gradient(2px 2px at 70% 35%, rgba(248, 250, 252, 0.55) 0%, transparent 70%),
+    radial-gradient(1px 1px at 82% 60%, rgba(191, 219, 254, 0.65) 0%, transparent 65%);
+  background-size: 240px 240px;
+  opacity: 0.65;
+  animation: starTwinkle 18s ease-in-out infinite;
+}
+
+.solar-system-haze {
+  position: absolute;
+  inset: -12%;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(14, 165, 233, 0.2), transparent 60%),
+    radial-gradient(circle at 65% 70%, rgba(236, 72, 153, 0.15), transparent 60%),
+    radial-gradient(circle at 35% 85%, rgba(251, 191, 36, 0.12), transparent 65%);
+  filter: blur(42px);
+  opacity: 0.85;
+  animation: auroraDrift 42s ease-in-out infinite reverse;
+}
+
+.solar-system-sun {
+  position: absolute;
+  top: 52%;
+  left: 48%;
+  width: 220px;
+  height: 220px;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(252, 211, 77, 0.95) 0%, rgba(249, 115, 22, 0.75) 45%, rgba(234, 88, 12, 0.05) 75%);
+  box-shadow:
+    0 0 80px rgba(251, 191, 36, 0.35),
+    0 0 200px rgba(249, 115, 22, 0.25);
+  animation: solarPulse 12s ease-in-out infinite;
+}
+
+.solar-system-sun::after {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.18), transparent 70%);
+  filter: blur(14px);
+}
+
+.solar-system-ai-ring {
+  position: absolute;
+  top: 52%;
+  left: 48%;
+  width: 560px;
+  height: 560px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 1px dashed rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 60px rgba(59, 130, 246, 0.18);
+  animation: orbitPulse 16s ease-in-out infinite;
+}
+
+.solar-system-orbit {
+  position: absolute;
+  top: 52%;
+  left: 48%;
+  border-radius: 9999px;
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  transform: translate(-50%, -50%);
+  animation: orbitRotate linear infinite;
+}
+
+.solar-system-orbit.orbit-one {
+  width: 360px;
+  height: 360px;
+  animation-duration: 46s;
+}
+
+.solar-system-orbit.orbit-two {
+  width: 520px;
+  height: 520px;
+  border-color: rgba(14, 165, 233, 0.22);
+  animation-duration: 62s;
+}
+
+.solar-system-orbit.orbit-three {
+  width: 700px;
+  height: 700px;
+  border-color: rgba(168, 85, 247, 0.2);
+  animation-duration: 78s;
+}
+
+.solar-system-orbit .planet {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  box-shadow: 0 0 25px rgba(248, 250, 252, 0.35);
+}
+
+.planet-mercury {
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle, rgba(248, 250, 252, 0.9), rgba(148, 163, 184, 0.7));
+}
+
+.planet-nebula {
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 30% 30%, rgba(14, 165, 233, 0.9), rgba(37, 99, 235, 0.5));
+  box-shadow:
+    0 0 30px rgba(14, 165, 233, 0.6),
+    0 0 60px rgba(59, 130, 246, 0.35);
+}
+
+.planet-saturn {
+  width: 32px;
+  height: 32px;
+  background: radial-gradient(circle at 40% 30%, rgba(251, 191, 36, 0.9), rgba(245, 158, 11, 0.65));
+  box-shadow:
+    0 0 30px rgba(251, 191, 36, 0.45),
+    0 0 65px rgba(249, 115, 22, 0.25);
+}
+
+.planet-saturn::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 60px;
+  height: 2px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, rgba(253, 230, 138, 0.85), transparent);
+  opacity: 0.75;
+}
+
+.solar-system-mist {
+  position: absolute;
+  inset: -15% 0 0 0;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(59, 130, 246, 0.2), transparent 65%),
+    radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.18), transparent 55%);
+  filter: blur(60px);
+  opacity: 0.5;
+}
+
+.solar-system-shooting-star {
+  position: absolute;
+  width: 160px;
+  height: 2px;
+  top: 24%;
+  left: -12%;
+  background: linear-gradient(90deg, transparent, rgba(248, 250, 252, 0.85));
+  opacity: 0.65;
+  filter: drop-shadow(0 0 6px rgba(248, 250, 252, 0.6));
+  animation: shootingStar 9s linear infinite;
+}
+
+
+
 }
 
 /* Animation for page transitions */
@@ -246,3 +431,64 @@
     opacity: 0.55;
   }
 }
+
+
+@keyframes auroraDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-4%, -3%, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes orbitRotate {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes orbitPulse {
+  0%, 100% {
+    box-shadow: 0 0 50px rgba(59, 130, 246, 0.12);
+    opacity: 0.85;
+  }
+  50% {
+    box-shadow: 0 0 70px rgba(59, 130, 246, 0.22);
+    opacity: 1;
+  }
+}
+
+@keyframes solarPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 45px rgba(251, 191, 36, 0.35));
+  }
+  50% {
+    filter: drop-shadow(0 0 65px rgba(251, 191, 36, 0.55));
+  }
+}
+
+@keyframes shootingStar {
+  0% {
+    transform: translateX(0) translateY(0) rotate(5deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.7;
+  }
+  60% {
+    transform: translateX(1400px) translateY(110px) rotate(5deg);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(1600px) translateY(140px) rotate(5deg);
+    opacity: 0;
+  }
+}
+
