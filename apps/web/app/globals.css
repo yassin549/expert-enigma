@@ -373,6 +373,8 @@
   mix-blend-mode: screen;
 }
 
+}
+
 /* Animation for page transitions */
 @keyframes page-enter {
   from {
