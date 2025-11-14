@@ -75,46 +75,15 @@ export default function LandingPage() {
             </p>
 
             {/* Live Stats */}
-            <div className="relative mb-10">
-              <div className="absolute inset-x-4 -top-32 sm:-top-40 h-64 sm:h-72 rounded-[40px] bg-gradient-to-b from-white/5 to-white/0 blur-2xl opacity-60" />
-              <div className="relative overflow-hidden rounded-[32px] border border-white/5 bg-white/5 backdrop-blur-2xl shadow-[0_20px_70px_rgba(15,23,42,0.55)]">
-                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),transparent_65%)]" />
-                <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(160deg,rgba(14,165,233,0.15)_0%,rgba(168,85,247,0.08)_55%,rgba(2,6,23,0.6)_100%)]" />
-                <div className="absolute inset-0 pointer-events-none opacity-60 mix-blend-screen" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25) 0%, transparent 55%), radial-gradient(circle at 80% 35%, rgba(255,255,255,0.2) 0%, transparent 60%)' }} />
-                <div className="relative px-6 pt-10 pb-2 sm:px-10 sm:pt-12 sm:pb-6">
-                  <div className="absolute inset-x-0 -top-20 h-20 bg-gradient-to-b from-transparent via-white/15 to-transparent blur-2xl opacity-70" />
-                  <div className="absolute -bottom-16 left-1/2 w-[280px] sm:w-[420px] aspect-[3/2] -translate-x-1/2 rounded-full bg-gradient-to-b from-white/10 to-transparent blur-3xl opacity-70" />
-                  <div className="relative">
-                    <div className="relative mx-auto h-[220px] sm:h-[280px] max-w-4xl">
-                      <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-[#0f172a]/40 via-[#1e293b]/15 to-transparent" />
-                      <div className="absolute inset-6 rounded-[24px] border border-white/5 bg-black/40 backdrop-blur-2xl overflow-hidden shadow-[0_30px_90px_rgba(15,23,42,0.65)]">
-                        <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'radial-gradient(circle at 30% 15%, rgba(59,130,246,0.4) 0%, transparent 55%), radial-gradient(circle at 75% 20%, rgba(251,191,36,0.35) 0%, transparent 60%), radial-gradient(ellipse at 50% 95%, rgba(3,7,18,0.95) 0%, rgba(2,6,23,0.7) 60%)' }} />
-                        <div className="absolute inset-0 mix-blend-screen opacity-60" style={{ backgroundImage: 'radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.6) 0%, transparent 55%), radial-gradient(1px 1px at 60% 15%, rgba(255,255,255,0.45) 0%, transparent 60%), radial-gradient(2px 2px at 80% 35%, rgba(255,255,255,0.3) 0%, transparent 65%)' }} />
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(3,7,18,0.9),rgba(2,6,23,0.2))]" />
-                        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#020617]/90 via-[#020617]/55 to-transparent" />
-                        <div className="relative flex h-full items-end justify-center">
-                          <div className="relative flex w-full max-w-3xl flex-col items-center justify-end pb-8 text-center">
-                            <div className="absolute -top-10 left-1/2 h-20 w-[320px] -translate-x-1/2 rounded-full bg-gradient-to-t from-sky-400/30 via-sky-200/10 to-transparent blur-2xl opacity-70" />
-                            <div className="absolute -top-6 left-1/2 h-16 w-16 -translate-x-1/2 rounded-full bg-gradient-to-br from-sky-200/40 via-sky-100/20 to-transparent blur-2xl opacity-80" />
-                            <div className="absolute -top-10 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full border border-sky-200/40 opacity-70" />
-                            <div className="relative w-full overflow-hidden rounded-[24px] border border-white/5 bg-black/40/50">
-                              <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/5" />
-                              <div className="absolute inset-x-10 bottom-12 h-12 rounded-full bg-gradient-to-b from-sky-200/40 via-transparent to-transparent blur-xl opacity-70" />
-                              <div className="relative px-6 pb-8 pt-20 sm:px-10 sm:pt-24">
-                                <div className="absolute inset-x-0 top-6 h-40 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.5),transparent_70%)] opacity-70" />
-                                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.45)_0%,rgba(15,23,42,0.8)_65%,rgba(2,6,23,0.95)_100%)]" />
-                                <div className="relative">
-                                  <LiveStats />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            <div className="mt-12 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/50">Live performance</p>
+                  <p className="text-white/80 text-sm sm:text-base">Continuously refreshed metrics from our AI core.</p>
                 </div>
+                <span className="text-xs text-white/50">Updates every few seconds</span>
               </div>
+              <LiveStats />
             </div>
 
             {/* CTA Buttons */}

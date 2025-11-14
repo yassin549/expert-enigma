@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp, Users, DollarSign, Activity, Zap, CheckCircle2 } from 'lucide-react'
-import { Card } from '@/components/ui/card'
 
 interface StatItem {
   label: string
@@ -88,31 +87,24 @@ export function LiveStats() {
   }, [])
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="live-stats-grid">
       {stats.map((stat, index) => (
         <motion.div
           key={stat.label}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 + index * 0.05 }}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ y: -4 }}
+          className={`live-stat-card ${stat.isPositive ? 'stat-positive' : 'stat-negative'}`}
         >
-          <Card className="p-4 bg-white/5 backdrop-blur-xl border-white/10 hover:bg-white/10 transition-all duration-160 group">
-            <div className="flex items-center justify-between mb-2">
-              <stat.icon className="w-5 h-5 text-brand-blue-400 group-hover:text-brand-purple-400 transition-colors" />
-              {stat.change && (
-                <span className={`text-xs font-medium ${
-                  stat.isPositive ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {stat.change}
-                </span>
-              )}
+          <div className="stat-header">
+            <div className="stat-icon">
+              <stat.icon className="w-4 h-4" />
             </div>
-            <p className="text-lg md:text-xl font-bold text-white mb-1 group-hover:text-brand-blue-300 transition-colors">
-              {stat.value}
-            </p>
-            <p className="text-xs text-white/60 leading-tight">{stat.label}</p>
-          </Card>
+            {stat.change && <span className="stat-change">{stat.change}</span>}
+          </div>
+          <p className="stat-value">{stat.value}</p>
+          <p className="stat-label">{stat.label}</p>
         </motion.div>
       ))}
     </div>
