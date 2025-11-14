@@ -120,15 +120,15 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(circle at 50% 120%, rgba(28, 78, 216, 0.3) 0%, rgba(3, 4, 14, 0.05) 55%, rgba(3, 4, 14, 0.8) 75%)
-        , radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.55) 0%, transparent 55%)
-        , radial-gradient(circle at 70% 25%, rgba(234, 179, 8, 0.45) 0%, transparent 60%)
-        , radial-gradient(ellipse at 50% 95%, rgba(8, 47, 73, 0.65) 0%, rgba(3, 4, 14, 0.9) 65%)
-        , linear-gradient(180deg, rgba(3, 4, 14, 0.35) 0%, rgba(3, 4, 14, 0.85) 55%, rgba(2, 6, 23, 0.95) 100%);
-    filter: saturate(120%);
+    background: radial-gradient(circle at 50% 120%, rgba(28, 78, 216, 0.22) 0%, rgba(3, 4, 14, 0.02) 55%, rgba(3, 4, 14, 0.75) 75%)
+        , radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.4) 0%, transparent 55%)
+        , radial-gradient(circle at 70% 25%, rgba(234, 179, 8, 0.32) 0%, transparent 60%)
+        , radial-gradient(ellipse at 50% 95%, rgba(8, 47, 73, 0.5) 0%, rgba(3, 4, 14, 0.85) 65%)
+        , linear-gradient(180deg, rgba(3, 4, 14, 0.25) 0%, rgba(3, 4, 14, 0.78) 55%, rgba(2, 6, 23, 0.95) 100%);
+    filter: saturate(110%);
     animation: cosmicZoom 32s ease-in-out infinite;
     transform-origin: center;
-    opacity: 0.85;
+    opacity: 0.65;
   }
 
   .cosmic-background::after {
@@ -152,12 +152,12 @@
     width: 420px;
     height: 420px;
     border-radius: 9999px;
-    filter: blur(80px);
-    opacity: 0.35;
+    filter: blur(72px);
+    opacity: 0.25;
     mix-blend-mode: screen;
     animation: blobFloat 18s ease-in-out infinite;
-    background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.45), transparent 60%),
-                radial-gradient(circle at 70% 70%, rgba(236, 72, 153, 0.35), transparent 55%);
+    background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.4), transparent 60%),
+                radial-gradient(circle at 70% 70%, rgba(236, 72, 153, 0.3), transparent 55%);
   }
 }
 

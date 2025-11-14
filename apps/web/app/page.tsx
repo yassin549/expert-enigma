@@ -13,8 +13,8 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#03040e] text-white">
       {/* Animated cosmic background */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.2),transparent_60%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(76,29,149,0.2),transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(76,29,149,0.18),transparent_55%)]" />
       <div className="cosmic-background" />
       <div className="floating-blob -top-52 -left-32" style={{ animationDuration: '26s' }} />
       <div
@@ -29,7 +29,7 @@ export default function LandingPage() {
 
       <div className="relative z-10 flex flex-col">
         {/* Floating Navigation */}
-        <div className="px-4 pt-4 sm:pt-8">
+        <div className="px-4 pt-3 sm:pt-6">
           <nav className="max-w-6xl mx-auto flex items-center justify-between rounded-full bg-white/10 backdrop-blur-2xl border border-white/10 shadow-[0_25px_80px_rgba(15,23,42,0.55)] px-4 py-3 sm:px-6 sm:py-4">
             <div className="flex items-center gap-2">
               <div className="h-9 w-9 sm:h-10 sm:w-10 bg-gradient-to-br from-brand-blue-500 to-brand-purple-500 rounded-2xl flex items-center justify-center shadow-[0_10px_30px_rgba(59,130,246,0.45)]">
@@ -54,7 +54,7 @@ export default function LandingPage() {
         </div>
 
         {/* Hero Section */}
-        <section className="container mx-auto px-4 pt-20 pb-20 sm:pt-28 lg:pt-32">
+        <section className="container mx-auto px-4 pt-16 pb-20 sm:pt-24 lg:pt-28">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -86,9 +86,9 @@ export default function LandingPage() {
             </p>
 
             {/* Live Stats */}
-            <div className="relative mb-12">
-              <div className="absolute inset-x-4 -top-40 sm:-top-48 h-72 sm:h-80 rounded-[48px] bg-gradient-to-b from-white/10 to-white/0 blur-3xl opacity-70" />
-              <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-white/5 backdrop-blur-3xl shadow-[0_25px_80px_rgba(15,23,42,0.55)]">
+            <div className="relative mb-10">
+              <div className="absolute inset-x-4 -top-32 sm:-top-40 h-64 sm:h-72 rounded-[40px] bg-gradient-to-b from-white/5 to-white/0 blur-2xl opacity-60" />
+              <div className="relative overflow-hidden rounded-[32px] border border-white/5 bg-white/5 backdrop-blur-2xl shadow-[0_20px_70px_rgba(15,23,42,0.55)]">
                 <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.18),transparent_65%)]" />
                 <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(160deg,rgba(14,165,233,0.15)_0%,rgba(168,85,247,0.08)_55%,rgba(2,6,23,0.6)_100%)]" />
                 <div className="absolute inset-0 pointer-events-none opacity-60 mix-blend-screen" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25) 0%, transparent 55%), radial-gradient(circle at 80% 35%, rgba(255,255,255,0.2) 0%, transparent 60%)' }} />
@@ -98,7 +98,7 @@ export default function LandingPage() {
                   <div className="relative">
                     <div className="relative mx-auto h-[220px] sm:h-[280px] max-w-4xl">
                       <div className="absolute inset-0 rounded-[28px] bg-gradient-to-b from-[#0f172a]/40 via-[#1e293b]/15 to-transparent" />
-                      <div className="absolute inset-6 rounded-[24px] border border-white/10 bg-black/40 backdrop-blur-2xl overflow-hidden shadow-[0_30px_90px_rgba(15,23,42,0.65)]">
+                      <div className="absolute inset-6 rounded-[24px] border border-white/5 bg-black/40 backdrop-blur-2xl overflow-hidden shadow-[0_30px_90px_rgba(15,23,42,0.65)]">
                         <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'radial-gradient(circle at 30% 15%, rgba(59,130,246,0.4) 0%, transparent 55%), radial-gradient(circle at 75% 20%, rgba(251,191,36,0.35) 0%, transparent 60%), radial-gradient(ellipse at 50% 95%, rgba(3,7,18,0.95) 0%, rgba(2,6,23,0.7) 60%)' }} />
                         <div className="absolute inset-0 mix-blend-screen opacity-60" style={{ backgroundImage: 'radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.6) 0%, transparent 55%), radial-gradient(1px 1px at 60% 15%, rgba(255,255,255,0.45) 0%, transparent 60%), radial-gradient(2px 2px at 80% 35%, rgba(255,255,255,0.3) 0%, transparent 65%)' }} />
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(3,7,18,0.9),rgba(2,6,23,0.2))]" />
@@ -108,10 +108,10 @@ export default function LandingPage() {
                             <div className="absolute -top-10 left-1/2 h-20 w-[320px] -translate-x-1/2 rounded-full bg-gradient-to-t from-sky-400/30 via-sky-200/10 to-transparent blur-2xl opacity-70" />
                             <div className="absolute -top-6 left-1/2 h-16 w-16 -translate-x-1/2 rounded-full bg-gradient-to-br from-sky-200/40 via-sky-100/20 to-transparent blur-2xl opacity-80" />
                             <div className="absolute -top-10 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full border border-sky-200/40 opacity-70" />
-                            <div className="relative w-full overflow-hidden rounded-[24px] border border-white/10 bg-black/40/50">
+                            <div className="relative w-full overflow-hidden rounded-[24px] border border-white/5 bg-black/40/50">
                               <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/5" />
                               <div className="absolute inset-x-10 bottom-12 h-12 rounded-full bg-gradient-to-b from-sky-200/40 via-transparent to-transparent blur-xl opacity-70" />
-                              <div className="relative px-6 pb-8 pt-24 sm:px-10 sm:pt-28">
+                              <div className="relative px-6 pb-8 pt-20 sm:px-10 sm:pt-24">
                                 <div className="absolute inset-x-0 top-6 h-40 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.5),transparent_70%)] opacity-70" />
                                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.45)_0%,rgba(15,23,42,0.8)_65%,rgba(2,6,23,0.95)_100%)]" />
                                 <div className="relative">
@@ -181,7 +181,7 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 + index * 0.1 }}
             >
-              <Card className="p-8 bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-2xl transition-all duration-160 h-full shadow-[0_25px_70px_rgba(15,23,42,0.45)]">
+              <Card className="p-8 bg-white/5 border border-white/5 hover:bg-white/10 backdrop-blur-2xl transition-all duration-160 h-full shadow-[0_25px_70px_rgba(15,23,42,0.45)]">
                 <feature.icon className="w-10 h-10 text-brand-blue-300 mb-4" />
                 <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
                 <p className="text-white/70 text-sm">{feature.description}</p>
