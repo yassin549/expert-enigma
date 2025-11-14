@@ -482,8 +482,35 @@ def get_pending_withdrawals(
     """
     Get all pending withdrawal requests for admin review
     """
-    # TODO: Implement when withdrawal model is fully set up
-    return []
+    logger.info(f"Admin {admin_user.id} fetching pending withdrawals")
+
+    results = session.exec(
+        select(Withdrawal, User, Account)
+        .join(User, Withdrawal.user_id == User.id)
+        .join(Account, Account.user_id == User.id)
+        .where(Withdrawal.status == "pending")
+        .order_by(Withdrawal.requested_at)
+    ).all()
+
+    pending: List[Dict[str, Any]] = []
+    for withdrawal, user, account in results:
+        pending.append(
+            {
+                "id": withdrawal.id,
+                "user_id": user.id,
+                "email": user.email,
+                "kyc_status": user.kyc_status,
+                "amount_requested": withdrawal.amount_requested,
+                "currency": withdrawal.currency,
+                "status": withdrawal.status,
+                "payout_address": withdrawal.payout_address,
+                "requested_at": withdrawal.requested_at,
+                "virtual_balance": account.virtual_balance,
+                "deposited_amount": account.deposited_amount,
+            }
+        )
+
+    return pending
 
 
 @router.post("/withdrawals/{withdrawal_id}/review", response_model=dict)
@@ -496,8 +523,151 @@ def review_withdrawal(
     """
     Approve or reject withdrawal request
     """
-    # TODO: Implement when withdrawal model is fully set up
-    return {"message": "Withdrawal review functionality not yet implemented"}
+    withdrawal = session.get(Withdrawal, withdrawal_id)
+    if not withdrawal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Withdrawal not found",
+        )
+
+    if withdrawal.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Withdrawal has already been reviewed",
+        )
+
+    if request.action not in {"approve", "reject"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid action. Must be 'approve' or 'reject'",
+        )
+
+    user = session.get(User, withdrawal.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found for withdrawal",
+        )
+
+    account = session.exec(
+        select(Account).where(Account.user_id == user.id)
+    ).first()
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Trading account not found for user",
+        )
+
+    if request.action == "reject":
+        withdrawal.status = "rejected"
+        withdrawal.admin_review_id = admin_user.id
+        withdrawal.reviewed_at = datetime.utcnow()
+        withdrawal.rejection_reason = request.reason
+
+        audit = Audit(
+            actor_user_id=admin_user.id,
+            action=AuditAction.WITHDRAWAL_REJECTED,
+            object_type="withdrawal",
+            object_id=withdrawal.id,
+            diff={"status": {"before": "pending", "after": "rejected"}},
+            reason=request.reason or "Withdrawal rejected by admin",
+        )
+
+        session.add(withdrawal)
+        session.add(audit)
+        session.commit()
+
+        logger.info("Admin %s rejected withdrawal %s", admin_user.id, withdrawal.id)
+        return {"message": "Withdrawal rejected", "withdrawal_id": withdrawal.id}
+
+    # Approve path
+    amount_to_approve = (
+        request.amount_approved
+        if request.amount_approved is not None
+        else withdrawal.amount_requested
+    )
+
+    if amount_to_approve <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Approved amount must be positive",
+        )
+
+    if amount_to_approve > withdrawal.amount_requested:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Approved amount cannot exceed requested amount",
+        )
+
+    if amount_to_approve > account.virtual_balance:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User does not have sufficient virtual balance",
+        )
+
+    previous_balance = account.virtual_balance
+    new_balance = previous_balance - amount_to_approve
+    if new_balance < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Withdrawal would result in negative virtual balance",
+        )
+
+    account.virtual_balance = new_balance
+    account.equity_cached = new_balance
+    account.updated_at = datetime.utcnow()
+
+    withdrawal.status = "approved"
+    withdrawal.amount_approved = amount_to_approve
+    withdrawal.admin_review_id = admin_user.id
+    withdrawal.reviewed_at = datetime.utcnow()
+    withdrawal.admin_notes = request.reason
+
+    ledger_entry = LedgerEntry(
+        account_id=account.id,
+        user_id=user.id,
+        entry_type=EntryType.WITHDRAWAL,
+        amount=-amount_to_approve,
+        balance_after=new_balance,
+        description=f"Withdrawal payout of {amount_to_approve} USD approved",
+        reference_type="withdrawal",
+        reference_id=withdrawal.id,
+    )
+
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.WITHDRAWAL_APPROVED,
+        object_type="withdrawal",
+        object_id=withdrawal.id,
+        diff={
+            "virtual_balance": {
+                "before": str(previous_balance),
+                "after": str(new_balance),
+            },
+            "amount_approved": str(amount_to_approve),
+        },
+        reason=request.reason or "Withdrawal approved by admin",
+    )
+
+    session.add(account)
+    session.add(withdrawal)
+    session.add(ledger_entry)
+    session.add(audit)
+    session.commit()
+
+    logger.info(
+        "Admin %s approved withdrawal %s for user %s (amount=%s)",
+        admin_user.id,
+        withdrawal.id,
+        user.id,
+        amount_to_approve,
+    )
+
+    return {
+        "message": "Withdrawal approved",
+        "withdrawal_id": withdrawal.id,
+        "amount_approved": amount_to_approve,
+    }
 
 
 @router.get("/kyc/pending", response_model=List[dict])

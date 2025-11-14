@@ -4,8 +4,17 @@ Celery tasks for deposit processing and reconciliation
 
 from celery import shared_task
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
+from datetime import datetime
+from decimal import Decimal
+
 import httpx
+from sqlmodel import Session, select
+
+from core.config import settings
+from core.database import get_sync_session
+from models.deposit import Deposit, DepositStatus
+from models.aml import AMLAlert, AMLSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -70,16 +79,118 @@ def reconcile_deposits_batch(start_date: str, end_date: str):
     """
     try:
         logger.info(f"Reconciling deposits from {start_date} to {end_date}")
-        
-        # TODO: Query database deposits for date range
-        # TODO: Query NOWPayments API for same period
-        # TODO: Compare and identify discrepancies
-        # TODO: Create AML alerts for mismatches
-        # TODO: Generate reconciliation report
-        
-        logger.info("✅ Deposit reconciliation complete")
-        return {"status": "success", "start_date": start_date, "end_date": end_date}
-        
+
+        start_dt = datetime.fromisoformat(start_date)
+        end_dt = datetime.fromisoformat(end_date)
+
+        session: Session = get_sync_session()
+        checked = 0
+        mismatches = 0
+
+        try:
+            deposits: List[Deposit] = session.exec(
+                select(Deposit)
+                .where(Deposit.created_at >= start_dt)
+                .where(Deposit.created_at <= end_dt)
+            ).all()
+
+            for deposit in deposits:
+                if not deposit.nowpayments_payment_id:
+                    continue
+
+                checked += 1
+                payment_id = deposit.nowpayments_payment_id
+
+                try:
+                    resp = httpx.get(
+                        f"{settings.NOWPAYMENTS_API_URL}/payment/{payment_id}",
+                        headers={"x-api-key": settings.NOWPAYMENTS_API_KEY},
+                        timeout=20.0,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                except Exception as exc:  # pragma: no cover - network layer
+                    logger.error(
+                        "Failed to fetch NOWPayments status for %s: %s",
+                        payment_id,
+                        exc,
+                    )
+                    continue
+
+                np_status = str(data.get("payment_status", "")).lower()
+                np_price_amount = Decimal(str(data.get("price_amount", deposit.amount_usd)))
+
+                # Map NOWPayments status to internal DepositStatus
+                if np_status in {"waiting", "partially_paid"}:
+                    mapped_status = DepositStatus.PENDING
+                elif np_status == "confirming":
+                    mapped_status = DepositStatus.CONFIRMING
+                elif np_status in {"confirmed", "sending", "finished"}:
+                    mapped_status = DepositStatus.CONFIRMED
+                elif np_status in {"failed", "expired"}:
+                    mapped_status = DepositStatus.FAILED
+                elif np_status == "refunded":
+                    mapped_status = DepositStatus.REFUNDED
+                else:
+                    mapped_status = deposit.status
+
+                mismatch_fields = []
+                if mapped_status != deposit.status:
+                    mismatch_fields.append("status")
+                if np_price_amount != deposit.amount_usd:
+                    mismatch_fields.append("amount_usd")
+
+                # Store latest provider payload in tx_meta under reconciliation key
+                tx_meta = deposit.tx_meta or {}
+                tx_meta["reconciliation_snapshot"] = data
+                deposit.tx_meta = tx_meta
+
+                if mismatch_fields:
+                    mismatches += 1
+                    alert = AMLAlert(
+                        user_id=deposit.user_id,
+                        type="deposit_reconciliation_mismatch",
+                        severity=AMLSeverity.MEDIUM,
+                        tx_id=deposit.id,
+                        tx_type="deposit",
+                        details={
+                            "payment_id": payment_id,
+                            "mismatch_fields": mismatch_fields,
+                            "local_status": deposit.status,
+                            "provider_status": np_status,
+                            "local_amount_usd": float(deposit.amount_usd),
+                            "provider_amount_usd": float(np_price_amount),
+                        },
+                        description=(
+                            f"Deposit {deposit.id} reconciliation mismatch on "
+                            + ",".join(mismatch_fields)
+                        ),
+                    )
+                    session.add(alert)
+                    deposit.reconciled = False
+                else:
+                    deposit.reconciled = True
+                    deposit.reconciled_at = datetime.utcnow()
+
+                session.add(deposit)
+
+            session.commit()
+        finally:
+            session.close()
+
+        logger.info(
+            "✅ Deposit reconciliation complete (checked=%s, mismatches=%s)",
+            checked,
+            mismatches,
+        )
+        return {
+            "status": "success",
+            "start_date": start_date,
+            "end_date": end_date,
+            "checked": checked,
+            "mismatches": mismatches,
+        }
+
     except Exception as e:
         logger.error(f"Deposit reconciliation failed: {str(e)}")
         raise

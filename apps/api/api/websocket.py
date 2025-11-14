@@ -277,6 +277,17 @@ async def notify_balance_update(user_id: int, account_id: int, new_balance: floa
     await manager.send_account_update(user_id, data)
 
 
+async def notify_deposit_update(user_id: int, deposit_data: dict):
+    """Notify user of deposit status update (real-time deposits feed)."""
+
+    data = {
+        "type": "deposit_update",
+        "deposit": deposit_data,
+    }
+
+    await manager.send_account_update(user_id, data)
+
+
 async def notify_order_fill(user_id: int, order_data: dict):
     """Notify user of order fill"""
     data = {
