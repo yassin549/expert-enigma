@@ -4,8 +4,10 @@ Centralized settings management using Pydantic
 """
 
 from pydantic_settings import BaseSettings
-from typing import List
+from pydantic import field_validator
+from typing import List, Union
 from functools import lru_cache
+import json
 
 
 class Settings(BaseSettings):
@@ -42,8 +44,25 @@ class Settings(BaseSettings):
     NOWPAYMENTS_SANDBOX: bool = True
     NOWPAYMENTS_API_URL: str = "https://api.nowpayments.io/v1"
     
-    # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    # CORS - Can be set via environment variable as comma-separated list or JSON array
+    # Example: CORS_ORIGINS=["http://localhost:3000","https://example.com"] or CORS_ORIGINS=http://localhost:3000,https://example.com
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:8080"]
+    
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        """Parse CORS origins from environment variable"""
+        if isinstance(v, str):
+            # Try to parse as JSON array first
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+            # If not JSON, treat as comma-separated string
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v if isinstance(v, list) else []
     
     # Admin
     ADMIN_EMAIL: str = "admin@topcoin.local"
