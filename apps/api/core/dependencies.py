@@ -5,7 +5,8 @@ FastAPI dependencies for authentication and authorization
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_session
 from core.security import decode_token, verify_token_type
@@ -15,9 +16,9 @@ from models.user import User
 security = HTTPBearer()
 
 
-def get_current_user(
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ) -> User:
     """
     Get current authenticated user from JWT token
@@ -48,9 +49,10 @@ def get_current_user(
         )
     
     # Fetch user from database
-    user = session.exec(
+    result = await session.execute(
         select(User).where(User.id == user_id)
-    ).first()
+    )
+    user = result.scalar_one_or_none()
     
     if user is None:
         raise HTTPException(
@@ -141,9 +143,9 @@ def require_trading_access(
     return current_user
 
 
-def get_optional_current_user(
+async def get_optional_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ) -> Optional[User]:
     """
     Get current user if authenticated, None otherwise
@@ -160,6 +162,6 @@ def get_optional_current_user(
         return None
     
     try:
-        return get_current_user(credentials, session)
+        return await get_current_user(credentials, session)
     except HTTPException:
         return None

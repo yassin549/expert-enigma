@@ -5,7 +5,8 @@ JWT-based authentication with 2FA support
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from datetime import datetime, timedelta
 import logging
@@ -68,7 +69,7 @@ class RefreshTokenRequest(BaseModel):
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(
     request: SignupRequest,
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     User registration endpoint
@@ -77,9 +78,10 @@ async def signup(
     logger.info(f"Signup attempt for email: {request.email}")
     
     # Check if user already exists
-    existing_user = session.exec(
+    result = await session.execute(
         select(User).where(User.email == request.email)
-    ).first()
+    )
+    existing_user = result.scalar_one_or_none()
     
     if existing_user:
         raise HTTPException(
@@ -101,8 +103,8 @@ async def signup(
     )
     
     session.add(new_user)
-    session.commit()
-    session.refresh(new_user)
+    await session.commit()
+    await session.refresh(new_user)
     
     # Create audit log
     audit = Audit(
@@ -113,7 +115,7 @@ async def signup(
         reason="User registration"
     )
     session.add(audit)
-    session.commit()
+    await session.commit()
     
     # Generate tokens
     access_token = create_access_token({"sub": str(new_user.id)})
@@ -131,7 +133,7 @@ async def signup(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     request: LoginRequest,
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     User login endpoint
@@ -140,9 +142,10 @@ async def login(
     logger.info(f"Login attempt for email: {request.email}")
     
     # Find user by email
-    user = session.exec(
+    result = await session.execute(
         select(User).where(User.email == request.email)
-    ).first()
+    )
+    user = result.scalar_one_or_none()
     
     if not user or not verify_password(request.password, user.hashed_password):
         raise HTTPException(
@@ -165,7 +168,7 @@ async def login(
     # Update last login
     user.last_login = datetime.utcnow()
     session.add(user)
-    session.commit()
+    await session.commit()
     
     # Create audit log
     audit = Audit(
@@ -176,7 +179,7 @@ async def login(
         reason="User login"
     )
     session.add(audit)
-    session.commit()
+    await session.commit()
     
     # Generate tokens
     access_token = create_access_token({"sub": str(user.id)})
@@ -194,7 +197,7 @@ async def login(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
     request: RefreshTokenRequest,
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Refresh access token using refresh token
@@ -204,7 +207,7 @@ async def refresh_token(
         user_id = int(payload.get("sub"))
         
         # Verify user still exists and is active
-        user = session.get(User, user_id)
+        user = await session.get(User, user_id)
         if not user or not user.is_active or user.is_banned:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -252,7 +255,7 @@ async def get_current_user_info(
 @router.post("/logout")
 async def logout(
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     User logout endpoint
@@ -267,7 +270,7 @@ async def logout(
         reason="User logout"
     )
     session.add(audit)
-    session.commit()
+    await session.commit()
     
     logger.info(f"User logged out: {current_user.id}")
     
