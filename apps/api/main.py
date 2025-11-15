@@ -130,26 +130,26 @@ async def root():
     }
 
 
- # Import and include routers
- from api.auth import router as auth_router
- from api.accounts import router as accounts_router
- from api.trading import router as trading_router
- from api.market import router as market_router
- from api.admin import router as admin_router
- from api.websocket import router as websocket_router
- from api.investments import router as investments_router
- from api.payments import router as payments_router
- from api.payouts import router as payouts_router
+# Import and include routers
+from api.auth import router as auth_router
+from api.accounts import router as accounts_router
+from api.trading import router as trading_router
+from api.market import router as market_router
+from api.admin import router as admin_router
+from api.websocket import router as websocket_router
+from api.investments import router as investments_router
+from api.payments import router as payments_router
+from api.payouts import router as payouts_router
 
- app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
- app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
- app.include_router(trading_router, prefix="/api/trading", tags=["Trading"])
- app.include_router(market_router, prefix="/api/market", tags=["Market Data"])
- app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
- app.include_router(investments_router, prefix="/api/investments", tags=["AI Investments"])
- app.include_router(websocket_router, prefix="/ws", tags=["WebSocket"])
- app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
- app.include_router(payouts_router, prefix="/api/payouts", tags=["Payouts"])
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
+app.include_router(trading_router, prefix="/api/trading", tags=["Trading"])
+app.include_router(market_router, prefix="/api/market", tags=["Market Data"])
+app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+app.include_router(investments_router, prefix="/api/investments", tags=["AI Investments"])
+app.include_router(websocket_router, prefix="/ws", tags=["WebSocket"])
+app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
+app.include_router(payouts_router, prefix="/api/payouts", tags=["Payouts"])
 
 
 if __name__ == "__main__":
