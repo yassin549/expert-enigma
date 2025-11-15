@@ -9,6 +9,7 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
 import hashlib
+import base64
 
 from core.config import settings
 
@@ -16,12 +17,16 @@ from core.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def _prehash_password(password: str) -> bytes:
+def _prehash_password(password: str) -> str:
     """
     Pre-hash password with SHA-256 to handle bcrypt's 72-byte limit.
+    Returns base64-encoded string (44 bytes) which is well under bcrypt's 72-byte limit.
     This allows passwords of any length while maintaining security.
     """
-    return hashlib.sha256(password.encode('utf-8')).digest()
+    # Hash with SHA-256 to get 32 bytes
+    digest = hashlib.sha256(password.encode('utf-8')).digest()
+    # Encode as base64 to get 44 characters (44 bytes), well under 72-byte limit
+    return base64.b64encode(digest).decode('ascii')
 
 
 def hash_password(password: str) -> str:
@@ -30,17 +35,15 @@ def hash_password(password: str) -> str:
     Passwords are pre-hashed with SHA-256 to handle bcrypt's 72-byte limit.
     This ensures passwords of any length can be securely hashed.
     """
-    # Pre-hash with SHA-256 to handle bcrypt's 72-byte limit
-    # SHA-256 produces 32 bytes, which becomes 64 hex characters (64 bytes)
-    # This is well under bcrypt's 72-byte limit
-    prehashed = _prehash_password(password)
-    prehashed_str = prehashed.hex()
+    # Pre-hash with SHA-256 and encode as base64 (44 bytes, well under 72-byte limit)
+    prehashed_str = _prehash_password(password)
     
     # Safety check: ensure we never exceed 72 bytes
-    # (SHA-256 hex is always 64 bytes, but this is defensive)
-    if len(prehashed_str.encode('utf-8')) > 72:
-        # This should never happen with SHA-256, but truncate if needed
-        prehashed_str = prehashed_str[:72]
+    # (base64 of SHA-256 is always 44 bytes, but this is defensive)
+    prehashed_bytes = prehashed_str.encode('utf-8')
+    if len(prehashed_bytes) > 72:
+        # Truncate to 72 bytes if somehow longer (should never happen)
+        prehashed_str = prehashed_bytes[:72].decode('utf-8', errors='ignore')
     
     return pwd_context.hash(prehashed_str)
 
@@ -50,13 +53,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Verify a password against its hash.
     Supports both old format (direct bcrypt) and new format (pre-hashed with SHA-256).
     """
-    # Try new format first (pre-hashed with SHA-256)
-    prehashed = _prehash_password(plain_password)
-    prehashed_str = prehashed.hex()
+    # Try new format first (pre-hashed with SHA-256, base64 encoded)
+    prehashed_str = _prehash_password(plain_password)
     
     # Safety check: ensure we never exceed 72 bytes (matches hash_password)
-    if len(prehashed_str.encode('utf-8')) > 72:
-        prehashed_str = prehashed_str[:72]
+    prehashed_bytes = prehashed_str.encode('utf-8')
+    if len(prehashed_bytes) > 72:
+        prehashed_str = prehashed_bytes[:72].decode('utf-8', errors='ignore')
     
     if pwd_context.verify(prehashed_str, hashed_password):
         return True
