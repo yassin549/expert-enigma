@@ -73,14 +73,11 @@ const nextConfig = {
       return [];
     }
     
+    // Only proxy HTTP/HTTPS requests (WebSocket connections must use direct URL)
     return [
       {
         source: '/api/:path*',
         destination: `${apiUrl}/api/:path*`,
-      },
-      {
-        source: '/ws/:path*',
-        destination: `${apiUrl.replace('http', 'ws')}/ws/:path*`,
       },
     ];
   },
