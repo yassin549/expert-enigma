@@ -37,7 +37,8 @@ export default function SignUpPage() {
       // Construct the full API URL
       const url = apiUrl ? `${apiUrl}/api/auth/signup` : '/api/auth/signup'
       
-      console.log('Signup request URL:', url) // Debug log
+      console.log('Signup request URL:', url)
+      console.log('API URL from env:', process.env.NEXT_PUBLIC_API_URL)
       
       const response = await fetch(url, {
         method: 'POST',
@@ -49,6 +50,12 @@ export default function SignUpPage() {
           password,
           display_name: displayName || undefined,
         }),
+      }).catch((fetchError) => {
+        // Network error - API is unreachable
+        console.error('Fetch error:', fetchError)
+        throw new Error(
+          `Cannot connect to API server. ${apiUrl ? `Trying to reach: ${apiUrl}` : 'API URL not configured. Please set NEXT_PUBLIC_API_URL environment variable.'}`
+        )
       })
 
       if (!response.ok) {

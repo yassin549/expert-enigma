@@ -36,7 +36,8 @@ export default function SignInPage() {
       // Construct the full API URL
       const url = apiUrl ? `${apiUrl}/api/auth/login` : '/api/auth/login'
       
-      console.log('Signin request URL:', url) // Debug log
+      console.log('Signin request URL:', url)
+      console.log('API URL from env:', process.env.NEXT_PUBLIC_API_URL)
       
       const response = await fetch(url, {
         method: 'POST',
@@ -47,6 +48,12 @@ export default function SignInPage() {
           email,
           password,
         }),
+      }).catch((fetchError) => {
+        // Network error - API is unreachable
+        console.error('Fetch error:', fetchError)
+        throw new Error(
+          `Cannot connect to API server. ${apiUrl ? `Trying to reach: ${apiUrl}` : 'API URL not configured. Please set NEXT_PUBLIC_API_URL environment variable.'}`
+        )
       })
 
       if (!response.ok) {

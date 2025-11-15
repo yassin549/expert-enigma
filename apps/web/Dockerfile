@@ -24,6 +24,14 @@ FROM base AS builder
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Accept build-time environment variables for NEXT_PUBLIC_* vars
+# These must be set in Railway before building
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
 COPY . .
 
 RUN npm run build
@@ -37,18 +45,19 @@ RUN apk add --no-cache libc6-compat
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=8080
+ENV HOSTNAME="0.0.0.0"
 
-COPY --from=builder /app ./
+# Copy standalone output from builder
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-RUN chown -R nextjs:nodejs /app
-
 USER nextjs
 
-EXPOSE $PORT
+EXPOSE 8080
 
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
