@@ -44,25 +44,28 @@ class Settings(BaseSettings):
     NOWPAYMENTS_SANDBOX: bool = True
     NOWPAYMENTS_API_URL: str = "https://api.nowpayments.io/v1"
     
-    # CORS - Can be set via environment variable as comma-separated list or JSON array
-    # Example: CORS_ORIGINS=["http://localhost:3000","https://example.com"] or CORS_ORIGINS=http://localhost:3000,https://example.com
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost:8080"]
+    # CORS - Can be set via environment variable as comma-separated list
+    # Example: CORS_ORIGINS=http://localhost:3000,https://example.com
+    # Note: For JSON array format, wrap in quotes: CORS_ORIGINS='["http://localhost:3000","https://example.com"]'
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000,http://localhost:8080"
     
-    @field_validator('CORS_ORIGINS', mode='before')
-    @classmethod
-    def parse_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
-        """Parse CORS origins from environment variable"""
-        if isinstance(v, str):
-            # Try to parse as JSON array first
-            try:
-                parsed = json.loads(v)
-                if isinstance(parsed, list):
-                    return parsed
-            except json.JSONDecodeError:
-                pass
-            # If not JSON, treat as comma-separated string
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v if isinstance(v, list) else []
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Get CORS origins as a list, parsing from string if needed"""
+        if not self.CORS_ORIGINS:
+            return ["http://localhost:3000"]
+        
+        # Try to parse as JSON array first
+        try:
+            parsed = json.loads(self.CORS_ORIGINS)
+            if isinstance(parsed, list):
+                return [str(origin).strip() for origin in parsed if origin]
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            pass
+        
+        # If not JSON, treat as comma-separated string
+        origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        return origins if origins else ["http://localhost:3000"]
     
     # Admin
     ADMIN_EMAIL: str = "admin@topcoin.local"
