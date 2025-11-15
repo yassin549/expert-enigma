@@ -23,8 +23,20 @@ export default function SignUpPage() {
     setIsLoading(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/api/auth/signup`, {
+      // Get API URL from environment or use relative path for same-origin requests
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL
+      
+      // If no API URL is set, try to use relative path (works if API is proxied)
+      if (!apiUrl) {
+        // In production/containerized environments, try relative path first
+        apiUrl = ''
+      } else if (apiUrl.endsWith('/')) {
+        apiUrl = apiUrl.slice(0, -1)
+      }
+
+      const url = apiUrl ? `${apiUrl}/api/auth/signup` : '/api/auth/signup'
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -36,11 +48,18 @@ export default function SignUpPage() {
         }),
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(data.detail || 'Failed to create account')
+        let errorMessage = 'Failed to create account'
+        try {
+          const data = await response.json()
+          errorMessage = data.detail || data.message || errorMessage
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`
+        }
+        throw new Error(errorMessage)
       }
+
+      const data = await response.json()
 
       // Store tokens
       localStorage.setItem('access_token', data.access_token)
@@ -49,7 +68,9 @@ export default function SignUpPage() {
       toast.success('Account created successfully!')
       router.push('/dashboard')
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create account. Please try again.')
+      console.error('Signup error:', error)
+      const errorMessage = error.message || 'Failed to create account. Please check your connection and try again.'
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }

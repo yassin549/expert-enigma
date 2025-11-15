@@ -22,8 +22,20 @@ export default function SignInPage() {
     setIsLoading(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/api/auth/login`, {
+      // Get API URL from environment or use relative path for same-origin requests
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL
+      
+      // If no API URL is set, try to use relative path (works if API is proxied)
+      if (!apiUrl) {
+        // In production/containerized environments, try relative path first
+        apiUrl = ''
+      } else if (apiUrl.endsWith('/')) {
+        apiUrl = apiUrl.slice(0, -1)
+      }
+
+      const url = apiUrl ? `${apiUrl}/api/auth/login` : '/api/auth/login'
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -34,11 +46,18 @@ export default function SignInPage() {
         }),
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        throw new Error(data.detail || 'Invalid email or password')
+        let errorMessage = 'Invalid email or password'
+        try {
+          const data = await response.json()
+          errorMessage = data.detail || data.message || errorMessage
+        } catch {
+          errorMessage = `Server error: ${response.status} ${response.statusText}`
+        }
+        throw new Error(errorMessage)
       }
+
+      const data = await response.json()
 
       // Store tokens
       localStorage.setItem('access_token', data.access_token)
@@ -47,7 +66,9 @@ export default function SignInPage() {
       toast.success('Signed in successfully!')
       router.push('/dashboard')
     } catch (error: any) {
-      toast.error(error.message || 'Failed to sign in. Please try again.')
+      console.error('Signin error:', error)
+      const errorMessage = error.message || 'Failed to sign in. Please check your connection and try again.'
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }

@@ -63,9 +63,26 @@ const nextConfig = {
     return [];
   },
   
-  // Rewrites
+  // Rewrites - Proxy API requests to backend
   async rewrites() {
-    return [];
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    
+    // If API URL is set and not localhost, we'll use direct requests
+    // Otherwise, proxy through Next.js (useful for same-origin requests)
+    if (apiUrl && !apiUrl.includes('localhost')) {
+      return [];
+    }
+    
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${apiUrl}/api/:path*`,
+      },
+      {
+        source: '/ws/:path*',
+        destination: `${apiUrl.replace('http', 'ws')}/ws/:path*`,
+      },
+    ];
   },
 };
 
