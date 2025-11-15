@@ -207,7 +207,7 @@ export default function AdminAIPlansPage() {
   const avgReturn = plans.reduce((sum, plan) => sum + plan.currentReturnPct, 0) / plans.length
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-blue-900 via-brand-purple-900 to-black">
+    <div className="min-h-screen bg-black">
       {/* Header */}
       <header className="border-b border-white/10 backdrop-blur-xl bg-white/5">
         <nav className="container mx-auto px-4 py-4">

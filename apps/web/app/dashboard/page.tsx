@@ -73,19 +73,7 @@ export default function DashboardPage() {
   const timeframes = ['1H', '4H', '1D', '1W', '1M']
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#03040e] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_60%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(168,85,247,0.18),transparent_55%)]" />
-      <div className="background-grid" />
-      <div className="floating-blob -top-40 -left-28" />
-      <div
-        className="floating-blob bottom-[-30%] right-[-15%]"
-        style={{
-          animationDelay: '6s',
-          background:
-            'radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.45), transparent 60%), radial-gradient(circle at 70% 70%, rgba(14, 165, 233, 0.35), transparent 55%)'
-        }}
-      />
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <header className="border-b border-white/10 backdrop-blur-xl bg-white/5">

@@ -124,19 +124,7 @@ export default function DepositPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#03040e] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_60%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(168,85,247,0.18),transparent_55%)]" />
-      <div className="background-grid" />
-      <div className="floating-blob -top-32 -left-24" />
-      <div
-        className="floating-blob bottom-[-25%] right-[-10%]"
-        style={{
-          animationDelay: '4s',
-          background:
-            'radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.45), transparent 60%), radial-gradient(circle at 75% 75%, rgba(14, 165, 233, 0.35), transparent 55%)'
-        }}
-      />
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
 
       <div className="relative z-10 flex flex-col min-h-screen">
         {/* Header */}

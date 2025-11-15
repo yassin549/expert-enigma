@@ -11,10 +11,7 @@ import { AIPerformanceShowcase } from '@/components/landing/AIPerformanceShowcas
 
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#03040e] text-white">
-      {/* AI generated cosmic background */}
-      <div className="galaxy-backdrop" aria-hidden />
-      <div className="galaxy-overlay" aria-hidden />
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
 
       <div className="relative z-10 flex flex-col">
         {/* Floating Navigation */}
