@@ -22,18 +22,21 @@ export default function SignInPage() {
     setIsLoading(true)
 
     try {
-      // Get API URL from environment or use relative path for same-origin requests
+      // Get API URL from environment variable
+      // In production, this MUST be set to the actual API service URL
       let apiUrl = process.env.NEXT_PUBLIC_API_URL
       
-      // If no API URL is set, try to use relative path (works if API is proxied)
       if (!apiUrl) {
-        // In production/containerized environments, try relative path first
+        // Fallback: try relative path (only works if proxied in development)
         apiUrl = ''
       } else if (apiUrl.endsWith('/')) {
         apiUrl = apiUrl.slice(0, -1)
       }
 
+      // Construct the full API URL
       const url = apiUrl ? `${apiUrl}/api/auth/login` : '/api/auth/login'
+      
+      console.log('Signin request URL:', url) // Debug log
       
       const response = await fetch(url, {
         method: 'POST',

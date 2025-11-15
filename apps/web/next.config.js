@@ -63,21 +63,30 @@ const nextConfig = {
     return [];
   },
   
-  // Rewrites - Proxy API requests to backend
+  // Rewrites - Proxy API requests to backend (only in development)
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const nodeEnv = process.env.NODE_ENV || 'development';
     
-    // If API URL is set and not localhost, we'll use direct requests
-    // Otherwise, proxy through Next.js (useful for same-origin requests)
-    if (apiUrl && !apiUrl.includes('localhost')) {
+    // Only proxy in development when API URL is localhost or not set
+    // In production, always use direct API calls via NEXT_PUBLIC_API_URL
+    if (nodeEnv === 'production') {
       return [];
     }
+    
+    // In development, only proxy if API URL is localhost
+    if (apiUrl && !apiUrl.includes('localhost') && !apiUrl.includes('127.0.0.1')) {
+      return [];
+    }
+    
+    const defaultApiUrl = 'http://localhost:8000';
+    const targetUrl = apiUrl || defaultApiUrl;
     
     // Only proxy HTTP/HTTPS requests (WebSocket connections must use direct URL)
     return [
       {
         source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
+        destination: `${targetUrl}/api/:path*`,
       },
     ];
   },
