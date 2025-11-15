@@ -50,18 +50,22 @@ async_session_maker = sessionmaker(
 async def init_db() -> None:
     """Initialize database - create tables if they don't exist"""
     try:
+        # Import all models to ensure they're registered with SQLModel metadata
+        from models import (
+            User, Account, AdminAdjustment, Wallet, Deposit, Withdrawal,
+            Order, Position, Instrument, Candle, AIInvestmentPlan, UserInvestment,
+            LedgerEntry, AMLAlert, Audit, SupportTicket
+        )
+        
         async with async_engine.begin() as conn:
-            # Import all models here to ensure they are registered with SQLModel
-            # from models.user import User
-            # from models.account import Account
-            # etc.
+            # Create all tables if they don't exist
+            # This works in both development and production as a fallback
+            # If tables already exist, SQLAlchemy will skip them
+            def create_tables(sync_conn):
+                SQLModel.metadata.create_all(bind=sync_conn, checkfirst=True)
             
-            # In production, use Alembic migrations instead
-            if settings.ENVIRONMENT == "development":
-                await conn.run_sync(SQLModel.metadata.create_all)
-                logger.info("✅ Database tables created successfully")
-            else:
-                logger.info("✅ Database connection established")
+            await conn.run_sync(create_tables)
+            logger.info("✅ Database tables initialized successfully")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {str(e)}")
         raise
