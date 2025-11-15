@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
+import hashlib
 
 from core.config import settings
 
@@ -15,14 +16,43 @@ from core.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def _prehash_password(password: str) -> bytes:
+    """
+    Pre-hash password with SHA-256 to handle bcrypt's 72-byte limit.
+    This allows passwords of any length while maintaining security.
+    """
+    return hashlib.sha256(password.encode('utf-8')).digest()
+
+
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt"""
-    return pwd_context.hash(password)
+    """
+    Hash a password using bcrypt.
+    Passwords longer than 72 bytes are pre-hashed with SHA-256.
+    """
+    # Pre-hash with SHA-256 to handle bcrypt's 72-byte limit
+    prehashed = _prehash_password(password)
+    # Convert to hex string (64 chars) for bcrypt
+    prehashed_str = prehashed.hex()
+    return pwd_context.hash(prehashed_str)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """
+    Verify a password against its hash.
+    Supports both old format (direct bcrypt) and new format (pre-hashed with SHA-256).
+    """
+    # Try new format first (pre-hashed with SHA-256)
+    prehashed = _prehash_password(plain_password)
+    prehashed_str = prehashed.hex()
+    if pwd_context.verify(prehashed_str, hashed_password):
+        return True
+    
+    # Fallback to old format for backward compatibility (direct bcrypt)
+    # This handles passwords that were hashed before the pre-hash change
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
 
 
 def create_access_token(
