@@ -40,7 +40,7 @@ export default function LandingPage() {
         </div>
 
         {/* Hero Section */}
-        <section className="container mx-auto px-4 pt-16 pb-20 sm:pt-24 lg:pt-28">
+        <section className="container mx-auto px-4 pt-12 sm:pt-16 md:pt-20 lg:pt-24 pb-12 sm:pb-16 md:pb-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -59,46 +59,51 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 sm:mb-8 leading-tight">
               The Future of{' '}
               <span className="bg-gradient-to-r from-brand-blue-400 to-brand-purple-400 bg-clip-text text-transparent">
                 Trading
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg md:text-xl text-white/70 mb-10 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-white/70 mb-16 sm:mb-20 max-w-2xl mx-auto">
               Access professional trading tools without opening a broker account. 
               Fully regulated, built for high-performance execution.
             </p>
 
             {/* Live Stats */}
-            <div className="mt-12 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-white/50">Live performance</p>
+            <div className="mb-20 sm:mb-24 md:mb-28 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6">
+                <div className="text-center sm:text-left">
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/50 mb-2">Live performance</p>
                   <p className="text-white/80 text-sm sm:text-base">Continuously refreshed metrics from our AI core.</p>
                 </div>
-                <span className="text-xs text-white/50">Updates every few seconds</span>
+                <span className="text-xs text-white/50 text-center sm:text-right">Updates every few seconds</span>
               </div>
               <LiveStats />
             </div>
 
+            {/* Visual Separator */}
+            <div className="mb-12 sm:mb-16 md:mb-20 flex items-center justify-center">
+              <div className="h-px w-24 sm:w-32 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+            </div>
+
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link href="/auth/signup">
-                <Button size="lg" className="bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90 text-base sm:text-lg px-8 py-5">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 sm:mb-10">
+              <Link href="/auth/signup" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90 text-base sm:text-lg px-8 sm:px-10 py-6 sm:py-5 shadow-[0_10px_40px_rgba(59,130,246,0.35)] hover:shadow-[0_15px_50px_rgba(59,130,246,0.45)] transition-all duration-300">
                   Start Trading Now
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
-              <Link href="/ai-plans">
-                <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 text-base sm:text-lg px-8 py-5">
+              <Link href="/ai-plans" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/20 text-white hover:bg-white/10 text-base sm:text-lg px-8 sm:px-10 py-6 sm:py-5 backdrop-blur-sm transition-all duration-300">
                   Explore AI Plans
                 </Button>
               </Link>
             </div>
 
-            <p className="text-xs sm:text-sm text-white/50 mt-6">
+            <p className="text-xs sm:text-sm text-white/50 mt-8 sm:mt-10 text-center">
               ⚠️ Trading involves substantial risk of loss. Trade responsibly.
             </p>
           </motion.div>
