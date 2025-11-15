@@ -27,12 +27,21 @@ def _prehash_password(password: str) -> bytes:
 def hash_password(password: str) -> str:
     """
     Hash a password using bcrypt.
-    Passwords longer than 72 bytes are pre-hashed with SHA-256.
+    Passwords are pre-hashed with SHA-256 to handle bcrypt's 72-byte limit.
+    This ensures passwords of any length can be securely hashed.
     """
     # Pre-hash with SHA-256 to handle bcrypt's 72-byte limit
+    # SHA-256 produces 32 bytes, which becomes 64 hex characters (64 bytes)
+    # This is well under bcrypt's 72-byte limit
     prehashed = _prehash_password(password)
-    # Convert to hex string (64 chars) for bcrypt
     prehashed_str = prehashed.hex()
+    
+    # Safety check: ensure we never exceed 72 bytes
+    # (SHA-256 hex is always 64 bytes, but this is defensive)
+    if len(prehashed_str.encode('utf-8')) > 72:
+        # This should never happen with SHA-256, but truncate if needed
+        prehashed_str = prehashed_str[:72]
+    
     return pwd_context.hash(prehashed_str)
 
 
@@ -44,6 +53,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     # Try new format first (pre-hashed with SHA-256)
     prehashed = _prehash_password(plain_password)
     prehashed_str = prehashed.hex()
+    
+    # Safety check: ensure we never exceed 72 bytes (matches hash_password)
+    if len(prehashed_str.encode('utf-8')) > 72:
+        prehashed_str = prehashed_str[:72]
+    
     if pwd_context.verify(prehashed_str, hashed_password):
         return True
     
