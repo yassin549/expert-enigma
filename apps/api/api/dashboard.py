@@ -89,7 +89,7 @@ async def get_dashboard_stats(
         )
         account = result.scalar_one_or_none()
         
-        # Get all confirmed deposits
+        # Get all confirmed deposits (confirmed deposits should always have confirmed_at)
         deposits_result = await session.execute(
             select(Deposit)
             .where(Deposit.user_id == current_user.id)
@@ -97,6 +97,9 @@ async def get_dashboard_stats(
             .order_by(Deposit.confirmed_at.desc())
         )
         deposits = deposits_result.scalars().all()
+        
+        # Filter out any deposits without confirmed_at (shouldn't happen, but safety check)
+        deposits = [d for d in deposits if d.confirmed_at is not None]
         
         # Calculate real deposit totals
         total_deposited = sum(d.amount_usd for d in deposits) if deposits else Decimal("0.00")
@@ -230,11 +233,34 @@ async def get_dashboard_stats(
             can_trade=can_trade,
             account_created_at=account_created_at
         )
+    except HTTPException:
+        # Re-raise HTTP exceptions (like auth errors)
+        raise
     except Exception as e:
         logger.error(f"Error fetching dashboard stats for user {current_user.id}: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch dashboard statistics: {str(e)}"
+        # Return a default response instead of raising an error
+        # This ensures the dashboard can still load even if there's a data issue
+        return DashboardStatsResponse(
+            total_deposited=Decimal("0.00"),
+            total_deposits_count=0,
+            last_deposit_date=None,
+            last_deposit_amount=None,
+            total_ai_investments=Decimal("0.00"),
+            active_ai_plans=0,
+            total_ai_returns=Decimal("0.00"),
+            total_ai_return_pct=Decimal("0.00"),
+            ai_growth_7d=Decimal("0.00"),
+            ai_growth_30d=Decimal("0.00"),
+            recent_transactions=[],
+            transaction_count_24h=0,
+            transaction_volume_24h=Decimal("0.00"),
+            total_pnl=Decimal("0.00"),
+            total_return_pct=Decimal("0.00"),
+            win_rate=Decimal("0.00"),
+            total_trades=0,
+            has_deposits=False,
+            can_trade=False,
+            account_created_at=None
         )
 
 

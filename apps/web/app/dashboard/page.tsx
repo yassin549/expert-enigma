@@ -101,9 +101,26 @@ export default function DashboardPage() {
           const data = await response.json()
           setStats(data)
         } else {
-          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
-          console.error('Failed to fetch dashboard stats:', response.status, errorData)
-          // Don't set stats to null here, let it show error state
+          // Try to get error details
+          let errorMessage = `HTTP ${response.status}`
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.detail || errorData.message || errorMessage
+            console.error('Failed to fetch dashboard stats:', response.status, errorData)
+          } catch {
+            const text = await response.text().catch(() => '')
+            console.error('Failed to fetch dashboard stats:', response.status, text)
+          }
+          
+          // If it's an auth error, redirect to login
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('token')
+            window.location.href = '/auth/signin'
+            return
+          }
+          
+          // For other errors, show error state
+          console.error('Dashboard API error:', errorMessage)
         }
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error)
