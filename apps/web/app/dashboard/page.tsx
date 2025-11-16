@@ -98,8 +98,50 @@ export default function DashboardPage() {
         })
         
         if (response.ok) {
-          const data = await response.json()
-          setStats(data)
+          try {
+            const data = await response.json()
+            // Convert Decimal strings to numbers if needed
+            const processedData = {
+              ...data,
+              total_deposited: typeof data.total_deposited === 'string' ? parseFloat(data.total_deposited) : data.total_deposited,
+              last_deposit_amount: data.last_deposit_amount ? (typeof data.last_deposit_amount === 'string' ? parseFloat(data.last_deposit_amount) : data.last_deposit_amount) : null,
+              total_ai_investments: typeof data.total_ai_investments === 'string' ? parseFloat(data.total_ai_investments) : data.total_ai_investments,
+              total_ai_returns: typeof data.total_ai_returns === 'string' ? parseFloat(data.total_ai_returns) : data.total_ai_returns,
+              total_ai_return_pct: typeof data.total_ai_return_pct === 'string' ? parseFloat(data.total_ai_return_pct) : data.total_ai_return_pct,
+              ai_growth_7d: typeof data.ai_growth_7d === 'string' ? parseFloat(data.ai_growth_7d) : data.ai_growth_7d,
+              ai_growth_30d: typeof data.ai_growth_30d === 'string' ? parseFloat(data.ai_growth_30d) : data.ai_growth_30d,
+              transaction_volume_24h: typeof data.transaction_volume_24h === 'string' ? parseFloat(data.transaction_volume_24h) : data.transaction_volume_24h,
+              total_pnl: typeof data.total_pnl === 'string' ? parseFloat(data.total_pnl) : data.total_pnl,
+              total_return_pct: typeof data.total_return_pct === 'string' ? parseFloat(data.total_return_pct) : data.total_return_pct,
+              win_rate: typeof data.win_rate === 'string' ? parseFloat(data.win_rate) : data.win_rate,
+            }
+            setStats(processedData)
+          } catch (parseError) {
+            console.error('Failed to parse dashboard stats response:', parseError)
+            // Set empty stats to prevent error screen
+            setStats({
+              total_deposited: 0,
+              total_deposits_count: 0,
+              last_deposit_date: null,
+              last_deposit_amount: null,
+              total_ai_investments: 0,
+              active_ai_plans: 0,
+              total_ai_returns: 0,
+              total_ai_return_pct: 0,
+              ai_growth_7d: 0,
+              ai_growth_30d: 0,
+              recent_transactions: [],
+              transaction_count_24h: 0,
+              transaction_volume_24h: 0,
+              total_pnl: 0,
+              total_return_pct: 0,
+              win_rate: 0,
+              total_trades: 0,
+              has_deposits: false,
+              can_trade: false,
+              account_created_at: null
+            })
+          }
         } else {
           // Try to get error details
           let errorMessage = `HTTP ${response.status}`
@@ -119,12 +161,56 @@ export default function DashboardPage() {
             return
           }
           
-          // For other errors, show error state
+          // For other errors, set empty stats to prevent error screen
           console.error('Dashboard API error:', errorMessage)
+          setStats({
+            total_deposited: 0,
+            total_deposits_count: 0,
+            last_deposit_date: null,
+            last_deposit_amount: null,
+            total_ai_investments: 0,
+            active_ai_plans: 0,
+            total_ai_returns: 0,
+            total_ai_return_pct: 0,
+            ai_growth_7d: 0,
+            ai_growth_30d: 0,
+            recent_transactions: [],
+            transaction_count_24h: 0,
+            transaction_volume_24h: 0,
+            total_pnl: 0,
+            total_return_pct: 0,
+            win_rate: 0,
+            total_trades: 0,
+            has_deposits: false,
+            can_trade: false,
+            account_created_at: null
+          })
         }
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error)
-        // Network error or other exception
+        // Network error or other exception - set empty stats
+        setStats({
+          total_deposited: 0,
+          total_deposits_count: 0,
+          last_deposit_date: null,
+          last_deposit_amount: null,
+          total_ai_investments: 0,
+          active_ai_plans: 0,
+          total_ai_returns: 0,
+          total_ai_return_pct: 0,
+          ai_growth_7d: 0,
+          ai_growth_30d: 0,
+          recent_transactions: [],
+          transaction_count_24h: 0,
+          transaction_volume_24h: 0,
+          total_pnl: 0,
+          total_return_pct: 0,
+          win_rate: 0,
+          total_trades: 0,
+          has_deposits: false,
+          can_trade: false,
+          account_created_at: null
+        })
       } finally {
         setLoading(false)
       }

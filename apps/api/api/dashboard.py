@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Pydantic models for request/response
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 
 
 class DashboardStatsResponse(BaseModel):
@@ -57,6 +57,13 @@ class DashboardStatsResponse(BaseModel):
     has_deposits: bool
     can_trade: bool
     account_created_at: Optional[datetime]
+    
+    @field_serializer('total_deposited', 'last_deposit_amount', 'total_ai_investments', 
+                      'total_ai_returns', 'total_ai_return_pct', 'ai_growth_7d', 
+                      'ai_growth_30d', 'transaction_volume_24h', 'total_pnl', 
+                      'total_return_pct', 'win_rate', mode='json')
+    def serialize_decimal(self, value: Optional[Decimal]) -> Optional[float]:
+        return float(value) if value is not None else None
 
 
 class CryptoPriceResponse(BaseModel):
@@ -70,6 +77,11 @@ class CryptoPriceResponse(BaseModel):
     high_24h: Decimal
     low_24h: Decimal
     last_updated: datetime
+    
+    @field_serializer('price', 'change_24h', 'change_24h_pct', 'volume_24h', 
+                      'market_cap', 'high_24h', 'low_24h', mode='json')
+    def serialize_decimal(self, value: Optional[Decimal]) -> Optional[float]:
+        return float(value) if value is not None else None
 
 
 @router.get("/stats", response_model=DashboardStatsResponse)

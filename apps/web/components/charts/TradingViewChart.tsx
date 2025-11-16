@@ -59,92 +59,114 @@ export function TradingViewChart({
   useEffect(() => {
     if (!chartContainerRef.current) return
 
-    // Create chart
-    const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#ffffff',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.1)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.1)' },
-      },
-      crosshair: {
-        mode: 1,
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        textColor: '#ffffff',
-      },
-      timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      width: chartContainerRef.current.clientWidth,
-      height: height,
-    })
+    try {
+      // Create chart
+      const chart = createChart(chartContainerRef.current, {
+        layout: {
+          background: { type: ColorType.Solid, color: 'transparent' },
+          textColor: '#ffffff',
+        },
+        grid: {
+          vertLines: { color: 'rgba(255, 255, 255, 0.1)' },
+          horzLines: { color: 'rgba(255, 255, 255, 0.1)' },
+        },
+        crosshair: {
+          mode: 1,
+        },
+        rightPriceScale: {
+          borderColor: 'rgba(255, 255, 255, 0.2)',
+          textColor: '#ffffff',
+        },
+        timeScale: {
+          borderColor: 'rgba(255, 255, 255, 0.2)',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        width: chartContainerRef.current.clientWidth,
+        height: height,
+      })
 
-    chartRef.current = chart
+      chartRef.current = chart
 
-    // Add candlestick series
-    const candlestickSeries = chart.addCandlestickSeries({
-      upColor: '#00ff88',
-      downColor: '#ff4757',
-      borderDownColor: '#ff4757',
-      borderUpColor: '#00ff88',
-      wickDownColor: '#ff4757',
-      wickUpColor: '#00ff88',
-    })
+      // Add candlestick series
+      const candlestickSeries = chart.addCandlestickSeries({
+        upColor: '#00ff88',
+        downColor: '#ff4757',
+        borderDownColor: '#ff4757',
+        borderUpColor: '#00ff88',
+        wickDownColor: '#ff4757',
+        wickUpColor: '#00ff88',
+      })
 
-    candlestickSeriesRef.current = candlestickSeries
+      candlestickSeriesRef.current = candlestickSeries
 
-    // Set data
-    const sampleData = generateSampleData(symbol)
-    candlestickSeries.setData(sampleData)
+      // Set data
+      const sampleData = generateSampleData(symbol)
+      if (sampleData && sampleData.length > 0) {
+        candlestickSeries.setData(sampleData)
 
-    // Fit content
-    chart.timeScale().fitContent()
+        // Fit content
+        chart.timeScale().fitContent()
 
-    setIsLoading(false)
+        // Simulate real-time updates
+        const interval = setInterval(() => {
+          if (candlestickSeriesRef.current && sampleData.length > 0) {
+            const lastData = sampleData[sampleData.length - 1]
+            const now = Math.floor(Date.now() / 1000)
+            const volatility = 0.001
+            const change = (Math.random() - 0.5) * 2 * volatility * lastData.close
+            
+            const newData: CandlestickData = {
+              time: now as any,
+              open: lastData.close,
+              high: lastData.close + Math.abs(change),
+              low: lastData.close - Math.abs(change),
+              close: lastData.close + change
+            }
+            
+            try {
+              candlestickSeriesRef.current.update(newData)
+            } catch (updateError) {
+              console.error('Error updating chart data:', updateError)
+            }
+          }
+        }, 2000)
 
-    // Handle resize
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        })
-      }
-    }
+        setIsLoading(false)
 
-    window.addEventListener('resize', handleResize)
-
-    // Simulate real-time updates
-    const interval = setInterval(() => {
-      if (candlestickSeriesRef.current) {
-        const lastData = sampleData[sampleData.length - 1]
-        const now = Math.floor(Date.now() / 1000)
-        const volatility = 0.001
-        const change = (Math.random() - 0.5) * 2 * volatility * lastData.close
-        
-        const newData: CandlestickData = {
-          time: now as any,
-          open: lastData.close,
-          high: lastData.close + Math.abs(change),
-          low: lastData.close - Math.abs(change),
-          close: lastData.close + change
+        // Handle resize
+        const handleResize = () => {
+          if (chartContainerRef.current && chartRef.current) {
+            try {
+              chartRef.current.applyOptions({
+                width: chartContainerRef.current.clientWidth,
+              })
+            } catch (resizeError) {
+              console.error('Error resizing chart:', resizeError)
+            }
+          }
         }
-        
-        candlestickSeriesRef.current.update(newData)
-      }
-    }, 2000)
 
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      clearInterval(interval)
-      if (chartRef.current) {
-        chartRef.current.remove()
+        window.addEventListener('resize', handleResize)
+
+        return () => {
+          window.removeEventListener('resize', handleResize)
+          clearInterval(interval)
+          if (chartRef.current) {
+            try {
+              chartRef.current.remove()
+            } catch (removeError) {
+              console.error('Error removing chart:', removeError)
+            }
+          }
+        }
+      } else {
+        setIsLoading(false)
+        console.error('No data generated for chart')
       }
+    } catch (error) {
+      console.error('Error initializing chart:', error)
+      setIsLoading(false)
     }
   }, [symbol, height])
 
