@@ -194,6 +194,11 @@ export default function DashboardPage() {
     )
   }
 
+  // Early return if stats is still null (shouldn't happen after loading, but TypeScript needs this)
+  if (!stats) {
+    return null
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-white">
       <div className="relative z-10 flex flex-col min-h-screen">
