@@ -40,11 +40,21 @@ async def get_current_user(
     verify_token_type(payload, "access")
     
     # Get user ID from token
-    user_id: Optional[int] = payload.get("sub")
-    if user_id is None:
+    user_id_raw = payload.get("sub")
+    if user_id_raw is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Convert user ID to integer (JWT sub can be string or int)
+    try:
+        user_id = int(user_id_raw) if isinstance(user_id_raw, str) else user_id_raw
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user ID in token",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
