@@ -113,32 +113,6 @@ async def init_db() -> None:
                                         logger.warning(f"⚠️  Migration may not have completed. Current: {new_rev}, Expected: {head_rev}")
                                 else:
                                     logger.info("✅ Database already at migration head")
-                            
-                            # Ensure 2FA columns exist (fallback if migration didn't add them)
-                            with sync_engine.connect() as sync_conn:
-                                # Check if columns exist
-                                result = sync_conn.execute(sa_text("""
-                                    SELECT column_name 
-                                    FROM information_schema.columns 
-                                    WHERE table_name = 'users' AND column_name IN ('totp_secret', 'is_2fa_enabled', 'two_factor_backup_codes')
-                                """))
-                                existing_columns = {row[0] for row in result}
-                                
-                                missing_columns = {'totp_secret', 'is_2fa_enabled', 'two_factor_backup_codes'} - existing_columns
-                                
-                                if missing_columns:
-                                    logger.warning(f"⚠️  Missing 2FA columns: {missing_columns}, adding them directly...")
-                                    for col in missing_columns:
-                                        if col == 'totp_secret':
-                                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(100)"))
-                                        elif col == 'is_2fa_enabled':
-                                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_2fa_enabled BOOLEAN NOT NULL DEFAULT false"))
-                                        elif col == 'two_factor_backup_codes':
-                                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_backup_codes VARCHAR(500)"))
-                                    sync_conn.commit()
-                                    logger.info("✅ 2FA columns added successfully")
-                                else:
-                                    logger.info("✅ All 2FA columns exist")
                         finally:
                             # Release the advisory lock
                             with sync_engine.connect() as sync_conn:
@@ -182,6 +156,38 @@ async def init_db() -> None:
                 # or the database might need manual intervention
                 logger.warning(f"⚠️  Migration warning: {error_str}")
                 logger.info("ℹ️  Continuing with table creation (migrations may have been applied by another worker)")
+        
+        # Ensure 2FA columns exist (fallback - ALL workers check this, regardless of migration status)
+        # This ensures columns exist even if migrations failed or haven't run yet
+        # This MUST run for all workers, not just the one that runs migrations
+        try:
+            with sync_engine.connect() as sync_conn:
+                # Check if columns exist
+                result = sync_conn.execute(sa_text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' AND column_name IN ('totp_secret', 'is_2fa_enabled', 'two_factor_backup_codes')
+                """))
+                existing_columns = {row[0] for row in result}
+                
+                missing_columns = {'totp_secret', 'is_2fa_enabled', 'two_factor_backup_codes'} - existing_columns
+                
+                if missing_columns:
+                    logger.warning(f"⚠️  Missing 2FA columns: {missing_columns}, adding them directly...")
+                    for col in missing_columns:
+                        if col == 'totp_secret':
+                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(100)"))
+                        elif col == 'is_2fa_enabled':
+                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_2fa_enabled BOOLEAN NOT NULL DEFAULT false"))
+                        elif col == 'two_factor_backup_codes':
+                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_backup_codes VARCHAR(500)"))
+                    sync_conn.commit()
+                    logger.info("✅ 2FA columns added successfully")
+                else:
+                    logger.info("✅ All 2FA columns exist")
+        except Exception as col_error:
+            logger.warning(f"⚠️  Error checking/adding 2FA columns: {col_error}")
+            # Don't fail startup if column check fails - might be a race condition or table doesn't exist yet
         
         async with async_engine.begin() as conn:
             # Create all tables if they don't exist
