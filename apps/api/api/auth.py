@@ -277,30 +277,216 @@ async def logout(
     return {"message": "Logged out successfully"}
 
 
-# 2FA endpoints (placeholder for future implementation)
-@router.post("/2fa/setup")
+# 2FA endpoints
+import pyotp
+import qrcode
+import io
+import base64
+import secrets
+import json
+from typing import List
+
+
+class Setup2FAResponse(BaseModel):
+    secret: str
+    qr_code_url: str
+    backup_codes: List[str]
+    message: str
+
+
+class Verify2FARequest(BaseModel):
+    code: str
+
+
+class Verify2FAResponse(BaseModel):
+    verified: bool
+    message: str
+
+
+class Disable2FARequest(BaseModel):
+    code: str  # Current 2FA code to confirm disabling
+
+
+@router.post("/2fa/setup", response_model=Setup2FAResponse)
 async def setup_2fa(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
 ):
     """
-    Setup 2FA for user account
-    TODO: Implement TOTP-based 2FA
+    Setup 2FA for user account using TOTP (Time-based One-Time Password)
+    Returns QR code URL and backup codes
     """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="2FA setup not yet implemented"
+    from core.config import settings
+    
+    # Generate TOTP secret
+    totp_secret = pyotp.random_base32()
+    
+    # Create TOTP instance
+    totp = pyotp.TOTP(totp_secret)
+    
+    # Generate provisioning URI
+    issuer_name = "Topcoin"
+    account_name = current_user.email
+    provisioning_uri = totp.provisioning_uri(
+        name=account_name,
+        issuer_name=issuer_name
+    )
+    
+    # Generate QR code
+    qr = qrcode.QRCode(version=1, box_size=10, border=5)
+    qr.add_data(provisioning_uri)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Convert to base64 data URL
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    qr_code_url = f"data:image/png;base64,{img_str}"
+    
+    # Generate backup codes (10 codes, 8 characters each)
+    backup_codes = [secrets.token_hex(4).upper() for _ in range(10)]
+    backup_codes_json = json.dumps(backup_codes)
+    
+    # Store secret and backup codes (but don't enable yet - user must verify first)
+    current_user.totp_secret = totp_secret
+    current_user.two_factor_backup_codes = backup_codes_json
+    current_user.is_2fa_enabled = False  # Will be enabled after verification
+    current_user.updated_at = datetime.utcnow()
+    
+    session.add(current_user)
+    await session.commit()
+    
+    logger.info(f"2FA setup initiated for user {current_user.id}")
+    
+    return Setup2FAResponse(
+        secret=totp_secret,  # For manual entry if QR code doesn't work
+        qr_code_url=qr_code_url,
+        backup_codes=backup_codes,
+        message="Scan QR code with authenticator app, then verify with a code to enable 2FA"
     )
 
 
-@router.post("/2fa/verify")
+@router.post("/2fa/verify", response_model=Verify2FAResponse)
 async def verify_2fa(
+    request: Verify2FARequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Verify 2FA code and enable 2FA if setup was completed
+    Can also be used to verify codes during login
+    """
+    if not current_user.totp_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA not set up. Please set up 2FA first."
+        )
+    
+    # Create TOTP instance
+    totp = pyotp.TOTP(current_user.totp_secret)
+    
+    # Verify code (allow 30-second window on either side)
+    is_valid = totp.verify(request.code, valid_window=1)
+    
+    # Also check backup codes
+    backup_code_valid = False
+    if not is_valid and current_user.two_factor_backup_codes:
+        try:
+            backup_codes = json.loads(current_user.two_factor_backup_codes)
+            if request.code.upper() in backup_codes:
+                backup_code_valid = True
+                # Remove used backup code
+                backup_codes.remove(request.code.upper())
+                current_user.two_factor_backup_codes = json.dumps(backup_codes) if backup_codes else None
+                session.add(current_user)
+                await session.commit()
+        except (json.JSONDecodeError, ValueError):
+            pass
+    
+    if is_valid or backup_code_valid:
+        # If 2FA is not yet enabled, enable it now
+        if not current_user.is_2fa_enabled:
+            current_user.is_2fa_enabled = True
+            current_user.updated_at = datetime.utcnow()
+            session.add(current_user)
+            await session.commit()
+            logger.info(f"2FA enabled for user {current_user.id}")
+            return Verify2FAResponse(
+                verified=True,
+                message="2FA code verified and enabled successfully"
+            )
+        else:
+            return Verify2FAResponse(
+                verified=True,
+                message="2FA code verified successfully"
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid 2FA code"
+        )
+
+
+@router.post("/2fa/disable")
+async def disable_2fa(
+    request: Disable2FARequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Disable 2FA for user account
+    Requires current 2FA code for verification
+    """
+    if not current_user.is_2fa_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is not enabled"
+        )
+    
+    # Verify code before disabling
+    if current_user.totp_secret:
+        totp = pyotp.TOTP(current_user.totp_secret)
+        is_valid = totp.verify(request.code, valid_window=1)
+        
+        # Also check backup codes
+        if not is_valid and current_user.two_factor_backup_codes:
+            try:
+                backup_codes = json.loads(current_user.two_factor_backup_codes)
+                if request.code.upper() in backup_codes:
+                    is_valid = True
+            except (json.JSONDecodeError, ValueError):
+                pass
+        
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid 2FA code. Cannot disable 2FA without verification."
+            )
+    
+    # Disable 2FA
+    current_user.is_2fa_enabled = False
+    current_user.totp_secret = None
+    current_user.two_factor_backup_codes = None
+    current_user.updated_at = datetime.utcnow()
+    
+    session.add(current_user)
+    await session.commit()
+    
+    logger.info(f"2FA disabled for user {current_user.id}")
+    
+    return {"message": "2FA disabled successfully"}
+
+
+@router.get("/2fa/status")
+async def get_2fa_status(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Verify 2FA code
-    TODO: Implement TOTP verification
+    Get 2FA status for current user
     """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="2FA verification not yet implemented"
-    )
+    return {
+        "is_2fa_enabled": current_user.is_2fa_enabled,
+        "has_backup_codes": current_user.two_factor_backup_codes is not None and len(json.loads(current_user.two_factor_backup_codes or "[]")) > 0
+    }

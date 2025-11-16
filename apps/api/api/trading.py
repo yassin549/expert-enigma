@@ -117,9 +117,9 @@ def place_order(
             detail="Instrument not found"
         )
     
-    # Get current market price (from latest candle or mock data)
-    # TODO: Implement real market data fetching
-    current_price = Decimal("50000.00")  # Mock BTC price
+    # Get current market price using market data service
+    from core.market_data import get_price_for_instrument
+    current_price = get_price_for_instrument(request.instrument_id, session)
     
     # Validate order parameters
     if request.order_type == OrderType.LIMIT and not request.price:
@@ -157,6 +157,8 @@ def place_order(
         fee=Decimal("0.00"),
         slippage=Decimal("0.00"),
         virtual_trade=True,  # Always true - no real broker
+        leverage=request.leverage,
+        margin_required=Decimal("0.00"),  # Will be calculated on fill
         created_at=datetime.utcnow()
     )
     
@@ -341,7 +343,7 @@ def _handle_position_update(
                         size=remaining_size,
                         entry_price=order.fill_price,
                         current_price=order.fill_price,
-                        leverage=1,  # TODO: Get from order
+                        leverage=order.leverage,
                         status=PositionStatus.OPEN,
                         opened_at=datetime.utcnow()
                     )
@@ -361,7 +363,7 @@ def _handle_position_update(
             size=order.filled_size,
             entry_price=order.fill_price,
             current_price=order.fill_price,
-            leverage=1,  # TODO: Get from order
+            leverage=order.leverage,
             status=PositionStatus.OPEN,
             opened_at=datetime.utcnow()
         )
@@ -501,10 +503,11 @@ def get_positions(
     positions = session.exec(query).all()
     
     # Calculate real-time P&L for each position
+    from core.market_data import get_price_for_instrument
     position_responses = []
     for position in positions:
-        # Get current market price (mock for now)
-        current_price = Decimal("50000.00")  # TODO: Get real market price
+        # Get current market price using market data service
+        current_price = get_price_for_instrument(position.instrument_id, session)
         
         # Calculate P&L
         pnl_calc = trading_simulator.calculate_position_pnl(
@@ -581,8 +584,9 @@ def close_position(
             detail="Close size cannot exceed position size"
         )
     
-    # Get current market price
-    current_price = Decimal("50000.00")  # TODO: Get real market price
+    # Get current market price using market data service
+    from core.market_data import get_price_for_instrument
+    current_price = get_price_for_instrument(position.instrument_id, session)
     
     # Calculate P&L for closed portion
     pnl_calc = trading_simulator.calculate_position_pnl(
@@ -682,9 +686,10 @@ def close_all_positions(
     closed_count = 0
     
     # Close each position
+    from core.market_data import get_price_for_instrument
     for position in open_positions:
-        # Get current market price
-        current_price = Decimal("50000.00")  # TODO: Get real market price
+        # Get current market price using market data service
+        current_price = get_price_for_instrument(position.instrument_id, session)
         
         # Calculate P&L
         pnl_calc = trading_simulator.calculate_position_pnl(

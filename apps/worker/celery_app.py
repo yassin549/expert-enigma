@@ -25,6 +25,7 @@ app = Celery(
     include=[
         # Only include implemented task modules to avoid import errors
         "worker.tasks.deposits",
+        "worker.tasks.orders",
     ],
 )
 
@@ -49,7 +50,11 @@ app.conf.beat_schedule = {
         "task": "worker.tasks.deposits.check_pending_deposits",
         "schedule": 120.0,  # Every 2 minutes
     },
-    # TODO: Add reconciliation, notification cleanup, and statistics tasks when modules are implemented
+    # Process pending limit/stop orders every 30 seconds
+    "process-pending-orders": {
+        "task": "worker.tasks.orders.process_pending_limit_stop_orders",
+        "schedule": 30.0,  # Every 30 seconds
+    },
 }
 
 logger.info("✅ Celery app initialized successfully")

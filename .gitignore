@@ -1,15 +1,27 @@
-# Dependencies
-node_modules/
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
-env/
 venv/
-.venv/
+env/
+ENV/
+.venv
 pip-log.txt
 pip-delete-this-directory.txt
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+apps/api/.env
+apps/web/.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # IDE
 .vscode/
@@ -17,52 +29,40 @@ pip-delete-this-directory.txt
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-.env.production
-
-# Build outputs
-dist/
-build/
-.next/
-out/
-*.egg-info/
-.coverage
-htmlcov/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+Thumbs.db
 
 # Logs
 *.log
 logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-pgdata/
+# Uploads (keep structure, ignore files)
+uploads/**/*
+!uploads/.gitkeep
 
-# Docker
-.docker/
-docker-compose.override.yml
-
-# OS
-Thumbs.db
-.DS_Store
+# Build
+dist/
+build/
+*.egg-info/
 
 # Testing
-coverage/
-.nyc_output/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Misc
-.cache/
-tmp/
-temp/
+# Node
+node_modules/
+.next/
+out/
+.npm
+
+# Railway
+.railway/
+
+# Temporary files
+*.tmp
+*.temp
+output.html
+description.txt

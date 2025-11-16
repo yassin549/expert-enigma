@@ -11,7 +11,9 @@ import asyncio
 from datetime import datetime
 
 from core.dependencies import get_current_user
+from core.websocket_auth import authenticate_websocket, authenticate_admin_websocket
 from models.user import User
+from models.account import Account
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -185,20 +187,41 @@ async def websocket_market_prices(websocket: WebSocket):
 async def websocket_account_updates(websocket: WebSocket, account_id: int):
     """
     WebSocket endpoint for account-specific updates
-    Requires authentication via query parameter or header
+    Requires authentication via query parameter: ?token=<jwt_token>
     """
-    # TODO: Implement WebSocket authentication
-    # For now, we'll use a simple approach
+    # Authenticate WebSocket connection (don't accept yet - we'll do it after auth)
+    try:
+        user, session = await authenticate_websocket(websocket, accept_connection=False)
+    except HTTPException:
+        # Authentication failed
+        await websocket.close(code=1008, reason="Authentication required")
+        return
     
-    # Mock user ID - in real implementation, extract from JWT token
-    user_id = 1  # This should be extracted from authentication
+    # Accept connection after successful authentication
+    await websocket.accept()
     
-    await manager.connect_account(websocket, user_id)
+    # Verify user owns the account
+    from sqlmodel import select
+    result = await session.execute(
+        select(Account).where(
+            Account.id == account_id,
+            Account.user_id == user.id
+        )
+    )
+    account = result.scalar_one_or_none()
+    
+    if not account:
+        await websocket.close(code=1008, reason="Account not found or access denied")
+        return
+    
+    await manager.connect_account(websocket, user.id)
     
     try:
         # Send initial account status
         initial_data = {
             "account_id": account_id,
+            "account_name": account.name,
+            "virtual_balance": str(account.virtual_balance),
             "message": "Connected to account updates"
         }
         await websocket.send_text(json.dumps({
@@ -210,25 +233,44 @@ async def websocket_account_updates(websocket: WebSocket, account_id: int):
         while True:
             try:
                 data = await websocket.receive_text()
-                # Handle client messages if needed
+                message = json.loads(data)
+                
+                # Handle client messages
+                if message.get("type") == "ping":
+                    await websocket.send_text(json.dumps({
+                        "type": "pong",
+                        "timestamp": datetime.utcnow().isoformat()
+                    }))
                 
             except WebSocketDisconnect:
                 break
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON received from user {user.id}")
             except Exception as e:
-                logger.error(f"WebSocket account error: {e}")
+                logger.error(f"WebSocket account error for user {user.id}: {e}")
                 break
     
     finally:
-        manager.disconnect_account(websocket, user_id)
+        manager.disconnect_account(websocket, user.id)
+        await session.close()
 
 
 @router.websocket("/admin/monitoring")
 async def websocket_admin_monitoring(websocket: WebSocket):
     """
     WebSocket endpoint for admin monitoring dashboard
-    Requires admin authentication
+    Requires admin authentication via query parameter: ?token=<jwt_token>
     """
-    # TODO: Implement admin WebSocket authentication
+    # Authenticate WebSocket connection (must be admin)
+    try:
+        user, session = await authenticate_admin_websocket(websocket, accept_connection=False)
+    except HTTPException:
+        # Authentication failed
+        await websocket.close(code=1008, reason="Admin authentication required")
+        return
+    
+    # Accept connection after successful authentication
+    await websocket.accept()
     
     await manager.connect_admin(websocket)
     
@@ -236,6 +278,10 @@ async def websocket_admin_monitoring(websocket: WebSocket):
         # Send initial admin data
         initial_data = {
             "message": "Connected to admin monitoring",
+            "admin_user": {
+                "id": user.id,
+                "email": user.email
+            },
             "active_connections": {
                 "market": len(manager.market_connections),
                 "accounts": sum(len(conns) for conns in manager.account_connections.values()),
@@ -251,16 +297,39 @@ async def websocket_admin_monitoring(websocket: WebSocket):
         while True:
             try:
                 data = await websocket.receive_text()
-                # Handle admin commands if needed
+                message = json.loads(data)
+                
+                # Handle admin commands
+                if message.get("type") == "ping":
+                    await websocket.send_text(json.dumps({
+                        "type": "pong",
+                        "timestamp": datetime.utcnow().isoformat()
+                    }))
+                elif message.get("type") == "get_stats":
+                    # Send current connection stats
+                    await websocket.send_text(json.dumps({
+                        "type": "stats",
+                        "data": {
+                            "active_connections": {
+                                "market": len(manager.market_connections),
+                                "accounts": sum(len(conns) for conns in manager.account_connections.values()),
+                                "admin": len(manager.admin_connections)
+                            },
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                    }))
                 
             except WebSocketDisconnect:
                 break
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON received from admin {user.id}")
             except Exception as e:
-                logger.error(f"WebSocket admin error: {e}")
+                logger.error(f"WebSocket admin error for admin {user.id}: {e}")
                 break
     
     finally:
         manager.disconnect_admin(websocket)
+        await session.close()
 
 
 # Helper functions for sending updates from other parts of the application

@@ -145,7 +145,8 @@ def get_ticker(
     
     if not latest_candle:
         # Generate mock data if no candles exist
-        current_price = _get_mock_price(symbol)
+        from core.market_data import get_current_price
+        current_price = get_current_price(symbol, session)
         volume_24h = Decimal("1000000.00")
         high_24h = current_price * Decimal("1.05")
         low_24h = current_price * Decimal("0.95")
@@ -314,18 +315,9 @@ def get_market_stats(
 
 def _get_mock_price(symbol: str) -> Decimal:
     """Generate mock current price based on symbol"""
-    mock_prices = {
-        "BTC/USD": Decimal("50000.00"),
-        "ETH/USD": Decimal("3000.00"),
-        "EUR/USD": Decimal("1.0850"),
-        "GBP/USD": Decimal("1.2500"),
-        "USD/JPY": Decimal("150.00"),
-        "GOLD": Decimal("1950.00"),
-        "SPX": Decimal("4200.00"),
-        "NASDAQ": Decimal("14000.00")
-    }
-    
-    return mock_prices.get(symbol.upper(), Decimal("100.00"))
+    from core.market_data import get_current_price
+    # Use centralized market data service
+    return get_current_price(symbol, session=None)
 
 
 def _get_spread_percentage(instrument_type: str) -> Decimal:

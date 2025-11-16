@@ -17,6 +17,13 @@ depends_on = None
 
 
 def upgrade():
+    # Add foreign key constraint for users.plan_id (from migration 002)
+    op.create_foreign_key(
+        'fk_users_plan_id',
+        'users', 'ai_investment_plans',
+        ['plan_id'], ['id']
+    )
+    
     # Create ai_investment_plans table
     op.create_table('ai_investment_plans',
         sa.Column('id', sa.Integer(), nullable=False),
@@ -140,5 +147,9 @@ def downgrade():
     op.drop_table('investment_plan_updates')
     op.drop_table('user_investments')
     op.drop_table('ai_investment_plans')
+    
+    # Drop foreign key constraint
+    op.drop_constraint('fk_users_plan_id', 'users', type_='foreignkey')
+    
     op.execute('DROP TYPE IF EXISTS risk_profile_enum')
     op.execute('DROP TYPE IF EXISTS update_type_enum')

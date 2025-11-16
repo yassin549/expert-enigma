@@ -55,6 +55,11 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     is_banned: bool = Field(default=False)
     
+    # 2FA (Two-Factor Authentication)
+    totp_secret: Optional[str] = Field(default=None, max_length=100, description="TOTP secret for 2FA")
+    is_2fa_enabled: bool = Field(default=False, description="Whether 2FA is enabled for this user")
+    two_factor_backup_codes: Optional[str] = Field(default=None, max_length=500, description="JSON array of backup codes")
+    
     # Investment Plan
     plan_id: Optional[int] = Field(default=None, foreign_key="ai_investment_plans.id")
     

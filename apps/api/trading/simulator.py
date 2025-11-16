@@ -131,7 +131,7 @@ class TradingSimulator:
         # Sell: receive less (negative slippage)
         return slippage if side == OrderSide.BUY else -slippage
     
-    async def simulate_order_fill(
+    def simulate_order_fill(
         self,
         order_type: OrderType,
         side: OrderSide,

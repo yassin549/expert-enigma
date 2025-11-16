@@ -1,10 +1,16 @@
 # 🚀 Railway Deployment Guide - Topcoin Platform
 
+> **Note**: For the most up-to-date deployment instructions, see `DEPLOYMENT.md`
+
+## Quick Reference
+
+This is a quick reference guide. For complete instructions, see `DEPLOYMENT.md`.
+
 ## Prerequisites
 
 1. **Railway Account**: Sign up at [railway.app](https://railway.app)
 2. **GitHub Repository**: Push your code to GitHub
-3. **Environment Variables**: Prepare your production environment variables
+3. **Environment Variables**: See `DEPLOYMENT.md` for complete list
 
 ## 🗄️ **Step 1: Deploy Database (PostgreSQL)**
 
@@ -33,21 +39,18 @@
    - **Port**: Railway will auto-detect from $PORT
 
 ### Environment Variables for API:
-```bash
-# Security Secrets (REQUIRED - Generated above)
-ADMIN_PASSWORD=ExY6!GoP^jE@VGftCKJs
-SESSION_SECRET=eS1qQA9Dti6aW0wvwUc6hix0vLwx6YL7KzTW1hQD00dPARa4eWgum4QGmkHyEuccnnhcCdZvNiRtZlS85VNQOA
-JWT_SECRET=ip5tk5c6aGCxwdEQBBEi9JeZ2MVNymbWZGbvJxCwHmC1SfPaQq5wTzkNX8Oq2GqihSk2etT1xWI6F3bf6fsslA
-JWT_ALGORITHM=HS256
 
-# Database & Redis (from Railway services)
-DATABASE_URL=postgresql://postgres:vfrpgZzDnbxzqBfUOmmkqLlRwcVlsRsQ@switchyard.proxy.rlwy.net:46344/railway
-REDIS_URL=redis://default:BIyXIxRfZJJitZyQvlqxMpVYvkxhXChW@ballast.proxy.rlwy.net:45220
+See `DEPLOYMENT.md` for complete environment variable configuration.
 
-# NOWPayments Configuration
-NOWPAYMENTS_API_KEY=A53GE0J-PPD4G6Z-NFVAC23-GNBEFAH
-NOWPAYMENTS_PUBLIC_KEY=c83c4ff4-30e7-4bd8-8d91-4d4912ac5863
-NOWPAYMENTS_IPN_SECRET=OemSUwv9OSlRrCjhEV5lMTzfBGKanpen
+**Required Variables:**
+- `DATABASE_URL` - From PostgreSQL service
+- `REDIS_URL` - From Redis service  
+- `JWT_SECRET` - Generate secure random string
+- `SESSION_SECRET` - Generate secure random string
+- `ADMIN_PASSWORD` - Set strong password
+- `NOWPAYMENTS_API_KEY` - From NOWPayments dashboard
+- `NOWPAYMENTS_PUBLIC_KEY` - From NOWPayments dashboard
+- `NOWPAYMENTS_IPN_SECRET` - From NOWPayments dashboard
 
 # Environment Configuration
 ENVIRONMENT=production

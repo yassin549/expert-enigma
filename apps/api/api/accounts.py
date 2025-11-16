@@ -74,6 +74,88 @@ class EquityCurveResponse(BaseModel):
     sharpe_ratio: Optional[Decimal]
 
 
+def _calculate_sharpe_ratio(account: Account, ledger_entries: List[LedgerEntry]) -> Optional[Decimal]:
+    """
+    Calculate Sharpe ratio for account performance
+    
+    Sharpe Ratio = (Average Return - Risk-Free Rate) / Standard Deviation of Returns
+    
+    For simplicity, we use:
+    - Risk-free rate = 0 (or can be configured)
+    - Calculate returns from equity curve points
+    - Use daily returns if available, otherwise use all available points
+    
+    Args:
+        account: Account object
+        ledger_entries: List of ledger entries for equity curve
+    
+    Returns:
+        Sharpe ratio as Decimal, or None if insufficient data
+    """
+    if not ledger_entries or len(ledger_entries) < 2:
+        return None
+    
+    # Build equity curve from ledger entries
+    equity_points = []
+    running_balance = account.deposited_amount
+    running_pnl = Decimal("0.00")
+    
+    for entry in ledger_entries:
+        if entry.entry_type in [EntryType.DEPOSIT, EntryType.ADMIN_ADJUSTMENT]:
+            running_balance += entry.amount
+        elif entry.entry_type == EntryType.TRADE_PNL:
+            running_pnl += entry.amount
+        
+        equity = running_balance + running_pnl
+        equity_points.append({
+            "timestamp": entry.created_at,
+            "equity": equity
+        })
+    
+    # Add current equity
+    equity_points.append({
+        "timestamp": datetime.utcnow(),
+        "equity": account.equity_cached if account.equity_cached > 0 else account.virtual_balance
+    })
+    
+    if len(equity_points) < 2:
+        return None
+    
+    # Calculate daily returns
+    returns = []
+    for i in range(1, len(equity_points)):
+        prev_equity = equity_points[i-1]["equity"]
+        curr_equity = equity_points[i]["equity"]
+        
+        if prev_equity > 0:
+            daily_return = (curr_equity - prev_equity) / prev_equity
+            returns.append(float(daily_return))
+    
+    if len(returns) < 2:
+        return None
+    
+    # Calculate average return and standard deviation
+    import statistics
+    try:
+        avg_return = Decimal(str(statistics.mean(returns)))
+        std_dev = Decimal(str(statistics.stdev(returns))) if len(returns) > 1 else Decimal("0.01")
+        
+        # Risk-free rate (assume 0 for simplicity, or can use actual risk-free rate)
+        risk_free_rate = Decimal("0.00")
+        
+        # Annualize (assuming daily returns, multiply by sqrt(252) for trading days)
+        # For simplicity, we'll use the raw Sharpe ratio
+        if std_dev > 0:
+            sharpe = (avg_return - risk_free_rate) / std_dev
+            # Annualize: multiply by sqrt(252) for daily returns
+            sharpe_annualized = sharpe * Decimal("15.8745")  # sqrt(252) ≈ 15.8745
+            return sharpe_annualized
+        else:
+            return Decimal("0.00")
+    except (statistics.StatisticsError, ValueError):
+        return None
+
+
 @router.post("/", response_model=AccountResponse, status_code=status.HTTP_201_CREATED)
 def create_account(
     request: CreateAccountRequest,
@@ -222,11 +304,55 @@ def get_account_balance(
         )
     
     # Calculate unrealized P&L from open positions
-    # TODO: Implement position P&L calculation
-    unrealized_pnl = Decimal("0.00")
+    from models.position import Position, PositionStatus
+    from trading.simulator import trading_simulator, OrderSide
+    from core.market_data import get_price_for_instrument
+    
+    open_positions = session.exec(
+        select(Position).where(
+            Position.account_id == account_id,
+            Position.status == PositionStatus.OPEN
+        )
+    ).all()
+    
+    total_unrealized_pnl = Decimal("0.00")
+    total_margin_used = Decimal("0.00")
+    
+    # Calculate P&L for each open position
+    for position in open_positions:
+        # Get current market price
+        current_price = get_price_for_instrument(position.instrument_id, session)
+        
+        # Convert position side to OrderSide enum
+        position_side = OrderSide.BUY if position.side.lower() == "buy" else OrderSide.SELL
+        
+        # Calculate P&L using simulator
+        pnl_calc = trading_simulator.calculate_position_pnl(
+            entry_price=position.entry_price,
+            current_price=current_price,
+            size=position.size,
+            side=position_side,
+            leverage=position.leverage
+        )
+        
+        # Update position with current price and P&L
+        position.current_price = current_price
+        position.unrealized_pnl = pnl_calc["unrealized_pnl"]
+        position.unrealized_pnl_pct = pnl_calc["unrealized_pnl_pct"]
+        position.last_updated_at = datetime.utcnow()
+        
+        # Accumulate totals
+        total_unrealized_pnl += pnl_calc["unrealized_pnl"]
+        total_margin_used += position.margin_used
+        
+        session.add(position)
+    
+    # Update account margin
+    account.margin_used = total_margin_used
+    account.margin_available = account.virtual_balance - total_margin_used
     
     # Calculate current equity
-    equity = account.virtual_balance + unrealized_pnl
+    equity = account.virtual_balance + total_unrealized_pnl
     
     # Update cached equity
     account.equity_cached = equity
@@ -240,7 +366,7 @@ def get_account_balance(
         equity=equity,
         margin_used=account.margin_used,
         margin_available=account.margin_available,
-        unrealized_pnl=unrealized_pnl
+        unrealized_pnl=total_unrealized_pnl
     )
 
 
@@ -338,7 +464,7 @@ def get_equity_curve(
         points=points,
         total_return_pct=total_return_pct,
         max_drawdown_pct=max_drawdown_pct,
-        sharpe_ratio=None  # TODO: Implement Sharpe ratio calculation
+        sharpe_ratio=_calculate_sharpe_ratio(account, ledger_entries) if ledger_entries else None
     )
 
 
