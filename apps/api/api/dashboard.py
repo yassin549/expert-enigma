@@ -61,7 +61,7 @@ class DashboardStatsResponse(BaseModel):
     @field_serializer('total_deposited', 'last_deposit_amount', 'total_ai_investments', 
                       'total_ai_returns', 'total_ai_return_pct', 'ai_growth_7d', 
                       'ai_growth_30d', 'transaction_volume_24h', 'total_pnl', 
-                      'total_return_pct', 'win_rate')
+                      'total_return_pct', 'win_rate', when_used='json')
     def serialize_decimal(self, value: Optional[Decimal]) -> Optional[float]:
         return float(value) if value is not None else None
 
@@ -79,7 +79,7 @@ class CryptoPriceResponse(BaseModel):
     last_updated: datetime
     
     @field_serializer('price', 'change_24h', 'change_24h_pct', 'volume_24h', 
-                      'market_cap', 'high_24h', 'low_24h')
+                      'market_cap', 'high_24h', 'low_24h', when_used='json')
     def serialize_decimal(self, value: Optional[Decimal]) -> Optional[float]:
         return float(value) if value is not None else None
 
