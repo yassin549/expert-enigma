@@ -103,7 +103,7 @@ export default function DashboardPage() {
   // Fetch dashboard stats
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('access_token')
       if (!token) {
         console.error('No authentication token found')
         setError('Please log in to view dashboard')
@@ -159,7 +159,8 @@ export default function DashboardPage() {
         console.error('Dashboard API error:', response.status, errorText)
         
         if (response.status === 401 || response.status === 403) {
-          localStorage.removeItem('token')
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
           window.location.href = '/auth/signin'
           return
         }
@@ -177,7 +178,7 @@ export default function DashboardPage() {
   // Fetch crypto prices
   const fetchCryptoPrices = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('access_token')
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const headers: HeadersInit = {
         'Content-Type': 'application/json'
