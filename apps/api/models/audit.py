@@ -20,6 +20,7 @@ class AuditAction(str, Enum):
     DEPOSIT_PROCESSED = "deposit_processed"
     WITHDRAWAL_APPROVED = "withdrawal_approved"
     WITHDRAWAL_REJECTED = "withdrawal_rejected"
+    KYC_SUBMITTED = "kyc_submitted"
     KYC_APPROVED = "kyc_approved"
     KYC_REJECTED = "kyc_rejected"
     ORDER_PLACED = "order_placed"

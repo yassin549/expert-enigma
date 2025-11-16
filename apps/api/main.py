@@ -141,6 +141,7 @@ from api.investments import router as investments_router
 from api.payments import router as payments_router
 from api.payouts import router as payouts_router
 from api.dashboard import router as dashboard_router
+from api.kyc import router as kyc_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
@@ -152,6 +153,7 @@ app.include_router(websocket_router, prefix="/ws", tags=["WebSocket"])
 app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
 app.include_router(payouts_router, prefix="/api/payouts", tags=["Payouts"])
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(kyc_router, prefix="/api/kyc", tags=["KYC"])
 
 
 if __name__ == "__main__":

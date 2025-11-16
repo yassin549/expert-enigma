@@ -142,26 +142,24 @@ def request_withdrawal(
     )
 
     session.add(withdrawal)
-
-    # Large withdrawal AML alert
-    threshold = Decimal(str(settings.AML_THRESHOLD_USD))
-    if amount >= threshold:
-        aml_alert = AMLAlert(
-            user_id=current_user.id,
-            type="large_withdrawal",
-            severity=AMLSeverity.HIGH,
-            tx_id=None,
-            tx_type="withdrawal",
-            details={
-                "amount": float(amount),
-                "threshold": float(threshold),
-                "currency": "USD",
-            },
-            description=f"Large withdrawal request of {amount} USD detected",
-        )
-        session.add(aml_alert)
-
     session.commit()
+    session.refresh(withdrawal)
+    
+    # Check AML rules after withdrawal request
+    try:
+        from core.aml_rules import check_and_create_aml_alerts
+        account = session.exec(
+            select(Account).where(Account.user_id == current_user.id)
+        ).first()
+        check_and_create_aml_alerts(
+            session=session,
+            event_type="withdrawal",
+            user_id=current_user.id,
+            tx_id=withdrawal.id,
+            account_id=account.id if account else None
+        )
+    except Exception as e:
+        logger.error(f"Failed to run AML checks for withdrawal {withdrawal.id}: {e}")
     session.refresh(withdrawal)
 
     logger.info(

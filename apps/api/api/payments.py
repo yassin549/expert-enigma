@@ -290,6 +290,18 @@ async def _process_confirmed_deposit(
     session.add(deposit)
     session.add(ledger_entry)
     session.commit()
+    
+    # Check AML rules after deposit
+    try:
+        from core.aml_rules import check_and_create_aml_alerts
+        check_and_create_aml_alerts(
+            session=session,
+            event_type="deposit",
+            user_id=deposit.user_id,
+            tx_id=deposit.id
+        )
+    except Exception as e:
+        logger.error(f"Failed to run AML checks for deposit {deposit.id}: {e}")
 
     # Emit WebSocket update for real-time UX (best-effort)
     try:

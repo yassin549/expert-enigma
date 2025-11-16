@@ -19,6 +19,7 @@ from models.ledger import LedgerEntry, EntryType
 from models.audit import Audit, AuditAction
 from models.withdrawal import Withdrawal
 from models.deposit import Deposit
+from models.aml import AMLAlert, AMLSeverity
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -456,10 +457,14 @@ def get_admin_statistics(
     ).count() if session.exec(select(Withdrawal)).first() else 0
     
     pending_kyc = session.exec(
-        select(User).where(User.kyc_status == "pending")
+        select(User).where(User.kyc_status.in_(["pending", "auto_approved"]))
     ).count()
     
-    aml_alerts = 0  # TODO: Implement AML alerts count
+    # Count pending AML alerts
+    from models.aml import AMLAlert
+    aml_alerts = session.exec(
+        select(AMLAlert).where(AMLAlert.status == "pending")
+    ).count() if session.exec(select(AMLAlert)).first() else 0
     
     return AdminStatsResponse(
         total_deposits=total_deposits,
@@ -746,4 +751,83 @@ def review_kyc(
         "message": f"KYC {action}d successfully",
         "user_id": user.id,
         "new_status": user.kyc_status
+    }
+
+
+@router.get("/aml/alerts", response_model=List[dict])
+def get_aml_alerts(
+    status_filter: Optional[str] = None,
+    severity_filter: Optional[str] = None,
+    limit: int = 100,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Get AML alerts with optional filtering"""
+    query = select(AMLAlert)
+    
+    if status_filter:
+        query = query.where(AMLAlert.status == status_filter)
+    if severity_filter:
+        query = query.where(AMLAlert.severity == severity_filter)
+    
+    query = query.order_by(AMLAlert.created_at.desc()).limit(limit)
+    alerts = session.exec(query).all()
+    
+    return [
+        {
+            "id": alert.id,
+            "user_id": alert.user_id,
+            "type": alert.type,
+            "severity": alert.severity.value,
+            "description": alert.description,
+            "status": alert.status,
+            "details": alert.details,
+            "created_at": alert.created_at.isoformat(),
+            "reviewed_at": alert.reviewed_at.isoformat() if alert.reviewed_at else None,
+            "action_taken": alert.action_taken
+        }
+        for alert in alerts
+    ]
+
+
+@router.post("/aml/alerts/{alert_id}/resolve", response_model=dict)
+def resolve_aml_alert(
+    alert_id: int,
+    resolution_notes: str,
+    action_taken: Optional[str] = None,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Resolve an AML alert"""
+    alert = session.get(AMLAlert, alert_id)
+    if not alert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="AML alert not found"
+        )
+    
+    alert.status = "resolved"
+    alert.reviewed_by = admin_user.id
+    alert.reviewed_at = datetime.utcnow()
+    alert.resolution_notes = resolution_notes
+    if action_taken:
+        alert.action_taken = action_taken
+    alert.resolved_at = datetime.utcnow()
+    
+    # Create audit log
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="aml_alert",
+        object_id=alert.id,
+        reason=f"AML alert resolved: {resolution_notes}"
+    )
+    
+    session.add(alert)
+    session.add(audit)
+    session.commit()
+    
+    return {
+        "message": "AML alert resolved successfully",
+        "alert_id": alert.id
     }
