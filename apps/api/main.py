@@ -140,6 +140,7 @@ from api.websocket import router as websocket_router
 from api.investments import router as investments_router
 from api.payments import router as payments_router
 from api.payouts import router as payouts_router
+from api.dashboard import router as dashboard_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
@@ -150,6 +151,7 @@ app.include_router(investments_router, prefix="/api/investments", tags=["AI Inve
 app.include_router(websocket_router, prefix="/ws", tags=["WebSocket"])
 app.include_router(payments_router, prefix="/api/payments", tags=["Payments"])
 app.include_router(payouts_router, prefix="/api/payouts", tags=["Payouts"])
+app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 
 
 if __name__ == "__main__":

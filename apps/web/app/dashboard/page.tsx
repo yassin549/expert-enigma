@@ -12,69 +12,152 @@ import {
   ArrowDownRight,
   Plus,
   Minus,
-  Eye,
-  EyeOff,
   Shield,
   AlertTriangle,
   Wallet,
   Bot,
-  CheckCircle
+  CheckCircle,
+  Coins,
+  BarChart3,
+  Clock,
+  Zap,
+  Target,
+  TrendingUp as TrendingUpIcon
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { TradingViewChart } from '@/components/charts/TradingViewChart'
 
-interface AccountStats {
-  virtualBalance: number
-  depositedAmount: number
-  totalPnL: number
-  totalReturn: number
-  openPositions: number
-  todayPnL: number
+interface DashboardStats {
+  total_deposited: number
+  total_deposits_count: number
+  last_deposit_date: string | null
+  last_deposit_amount: number | null
+  total_ai_investments: number
+  active_ai_plans: number
+  total_ai_returns: number
+  total_ai_return_pct: number
+  ai_growth_7d: number
+  ai_growth_30d: number
+  recent_transactions: Array<{
+    id: number
+    type: string
+    amount: number
+    description: string
+    timestamp: string
+    balance_after: number
+  }>
+  transaction_count_24h: number
+  transaction_volume_24h: number
+  total_pnl: number
+  total_return_pct: number
+  win_rate: number
+  total_trades: number
+  has_deposits: boolean
+  can_trade: boolean
+  account_created_at: string | null
+}
+
+interface CryptoPrice {
+  symbol: string
+  name: string
+  price: number
+  change_24h: number
+  change_24h_pct: number
+  volume_24h: number
+  market_cap: number | null
+  high_24h: number
+  low_24h: number
+  last_updated: string
 }
 
 export default function DashboardPage() {
-  const [accountStats, setAccountStats] = useState<AccountStats>({
-    virtualBalance: 10000,
-    depositedAmount: 500,
-    totalPnL: 9500,
-    totalReturn: 1900, // 1900% return
-    openPositions: 3,
-    todayPnL: 245.67
-  })
-  
-  const [balanceVisible, setBalanceVisible] = useState(true)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedTimeframe, setSelectedTimeframe] = useState('1D')
 
-  // Simulate real-time updates
+  // Fetch dashboard stats
   useEffect(() => {
-    const interval = setInterval(() => {
-      setAccountStats(prev => {
-        const change = (Math.random() - 0.5) * 50 // Random change up to ±$50
-        const newTodayPnL = prev.todayPnL + change
-        const newVirtualBalance = prev.virtualBalance + change
-        const newTotalPnL = newVirtualBalance - prev.depositedAmount
-        const newTotalReturn = ((newTotalPnL / prev.depositedAmount) * 100)
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/dashboard/stats`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
         
-        return {
-          ...prev,
-          virtualBalance: Math.max(0, newVirtualBalance),
-          totalPnL: newTotalPnL,
-          totalReturn: newTotalReturn,
-          todayPnL: newTodayPnL
+        if (response.ok) {
+          const data = await response.json()
+          setStats(data)
         }
-      })
-    }, 3000)
+      } catch (error) {
+        console.error('Failed to fetch dashboard stats:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
+    fetchStats()
+    const interval = setInterval(fetchStats, 30000) // Refresh every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
+
+  // Fetch crypto prices
+  useEffect(() => {
+    const fetchCryptoPrices = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/dashboard/crypto-prices`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setCryptoPrices(data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch crypto prices:', error)
+      }
+    }
+
+    fetchCryptoPrices()
+    const interval = setInterval(fetchCryptoPrices, 60000) // Refresh every minute
     return () => clearInterval(interval)
   }, [])
 
   const timeframes = ['1H', '4H', '1D', '1W', '1M']
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white/60">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!stats) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+          <p className="text-white/60">Failed to load dashboard data</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-white">
-
       <div className="relative z-10 flex flex-col min-h-screen">
         <header className="border-b border-white/10 backdrop-blur-xl bg-white/5">
           <nav className="container mx-auto px-4 py-4">
@@ -116,6 +199,38 @@ export default function DashboardPage() {
         </header>
 
         <main className="container mx-auto px-4 py-8 pb-16 flex-1 w-full">
+          {/* Welcome Section */}
+          {!stats.has_deposits && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8"
+            >
+              <Card className="p-8 bg-gradient-to-r from-brand-blue-500/20 to-brand-purple-500/20 backdrop-blur-xl border-brand-blue-500/30">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-white mb-2">Welcome to Topcoin!</h2>
+                    <p className="text-white/80 mb-4">
+                      Start your trading journey by making your first deposit. Our AI-powered trading engine 
+                      helps you grow your capital with institutional-grade strategies.
+                    </p>
+                    <Link href="/deposit">
+                      <Button className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Make Your First Deposit
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="text-center md:text-right">
+                    <div className="text-4xl font-bold text-white mb-2">$0</div>
+                    <div className="text-white/60">Total Deposited</div>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Main Stats Grid */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -125,111 +240,328 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-white">Trading Dashboard</h1>
-                <p className="text-white/60 text-sm md:text-base">Your simulated capital, real deposits, and AI strategy performance at a glance.</p>
+                <p className="text-white/60 text-sm md:text-base">
+                  Real deposits, AI-powered returns, and live market data
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-full text-white/70 text-sm">
                   <Wallet className="w-4 h-4 text-cyan-300" />
-                  Custody: ${accountStats.depositedAmount.toLocaleString()}
+                  Deposited: ${stats.total_deposited.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-full text-white/70 text-sm">
-                  <Bot className="w-4 h-4 text-purple-300" />
-                  AI Return: {accountStats.totalReturn >= 0 ? '+' : ''}{accountStats.totalReturn.toFixed(1)}%
-                </div>
+                {stats.active_ai_plans > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-full text-white/70 text-sm">
+                    <Bot className="w-4 h-4 text-purple-300" />
+                    AI Return: {stats.total_ai_return_pct >= 0 ? '+' : ''}{stats.total_ai_return_pct.toFixed(2)}%
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+              {/* Total Deposited */}
               <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-white/60">Virtual Balance</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setBalanceVisible(!balanceVisible)}
-                    className="text-white/60 hover:text-white p-1"
-                  >
-                    {balanceVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </Button>
+                  <p className="text-sm text-white/60">Total Deposited</p>
+                  <Wallet className="w-5 h-5 text-cyan-300" />
                 </div>
                 <p className="text-2xl font-bold text-white mb-1">
-                  {balanceVisible ? `$${accountStats.virtualBalance.toLocaleString()}` : '••••••'}
+                  ${stats.total_deposited.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
-                <div className="flex items-center gap-1">
-                  {accountStats.todayPnL >= 0 ? (
-                    <ArrowUpRight className="w-4 h-4 text-green-400" />
-                  ) : (
-                    <ArrowDownRight className="w-4 h-4 text-red-400" />
-                  )}
-                  <span className={`text-sm ${accountStats.todayPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    ${Math.abs(accountStats.todayPnL).toFixed(2)} today
-                  </span>
+                <p className="text-sm text-white/60">
+                  {stats.total_deposits_count} deposit{stats.total_deposits_count !== 1 ? 's' : ''}
+                </p>
+                {stats.last_deposit_date && (
+                  <p className="text-xs text-white/40 mt-1">
+                    Last: {new Date(stats.last_deposit_date).toLocaleDateString()}
+                  </p>
+                )}
+              </Card>
+
+              {/* AI Investments */}
+              {stats.total_ai_investments > 0 ? (
+                <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-white/60">AI Investments</p>
+                    <Bot className="w-5 h-5 text-purple-300" />
+                  </div>
+                  <p className="text-2xl font-bold text-white mb-1">
+                    ${stats.total_ai_investments.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    {stats.total_ai_return_pct >= 0 ? (
+                      <ArrowUpRight className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <ArrowDownRight className="w-4 h-4 text-red-400" />
+                    )}
+                    <span className={`text-sm ${stats.total_ai_return_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {stats.total_ai_return_pct >= 0 ? '+' : ''}{stats.total_ai_return_pct.toFixed(2)}% return
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/40 mt-1">
+                    {stats.active_ai_plans} active plan{stats.active_ai_plans !== 1 ? 's' : ''}
+                  </p>
+                </Card>
+              ) : (
+                <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-white/60">AI Investments</p>
+                    <Bot className="w-5 h-5 text-purple-300" />
+                  </div>
+                  <p className="text-2xl font-bold text-white/40 mb-1">$0.00</p>
+                  <p className="text-sm text-white/60">No active investments</p>
+                  <Link href="/ai-plans" className="text-xs text-brand-blue-400 hover:text-brand-blue-300 mt-2 inline-block">
+                    Explore AI Plans →
+                  </Link>
+                </Card>
+              )}
+
+              {/* Total P&L */}
+              <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-white/60">Total P&amp;L</p>
+                  <TrendingUpIcon className="w-5 h-5 text-blue-300" />
                 </div>
+                <p className={`text-2xl font-bold mb-1 ${stats.total_pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {stats.total_pnl >= 0 ? '+' : ''}${stats.total_pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className={`text-sm ${stats.total_return_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {stats.total_return_pct >= 0 ? '+' : ''}{stats.total_return_pct.toFixed(2)}% return
+                </p>
+                {stats.total_trades > 0 && (
+                  <p className="text-xs text-white/40 mt-1">
+                    {stats.win_rate.toFixed(1)}% win rate ({stats.total_trades} trades)
+                  </p>
+                )}
               </Card>
 
+              {/* 24h Activity */}
               <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
-                <p className="text-sm text-white/60 mb-2">Deposited Amount</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-white/60">24h Activity</p>
+                  <Activity className="w-5 h-5 text-green-300" />
+                </div>
                 <p className="text-2xl font-bold text-white mb-1">
-                  ${accountStats.depositedAmount.toLocaleString()}
+                  {stats.transaction_count_24h}
                 </p>
-                <p className="text-sm text-white/60">Real money in custody</p>
-              </Card>
-
-              <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
-                <p className="text-sm text-white/60 mb-2">Total P&amp;L</p>
-                <p className={`text-2xl font-bold mb-1 ${accountStats.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {accountStats.totalPnL >= 0 ? '+' : ''}${accountStats.totalPnL.toLocaleString()}
+                <p className="text-sm text-white/60">
+                  {stats.transaction_count_24h === 1 ? 'Transaction' : 'Transactions'}
                 </p>
-                <p className={`text-sm ${accountStats.totalReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {accountStats.totalReturn >= 0 ? '+' : ''}{accountStats.totalReturn.toFixed(1)}% return
+                <p className="text-xs text-white/40 mt-1">
+                  Volume: ${stats.transaction_volume_24h.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
-              </Card>
-
-              <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
-                <p className="text-sm text-white/60 mb-2">Open Positions</p>
-                <p className="text-2xl font-bold text-white mb-1">{accountStats.openPositions}</p>
-                <Link href="/trading" className="text-sm text-brand-blue-400 hover:text-brand-blue-300">
-                  View all positions →
-                </Link>
               </Card>
             </div>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mb-8"
-          >
-            <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Account Equity Curve</h2>
-                <div className="flex gap-2">
-                  {timeframes.map((tf) => (
-                    <Button
-                      key={tf}
-                      variant={selectedTimeframe === tf ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setSelectedTimeframe(tf)}
-                      className={`${
-                        selectedTimeframe === tf
-                          ? 'bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white'
-                          : 'border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
-                      } transition-all duration-160`}
-                    >
-                      {tf}
-                    </Button>
+          {/* AI Engine Statistics */}
+          {stats.total_ai_investments > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mb-8"
+            >
+              <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Bot className="w-6 h-6 text-purple-300" />
+                      AI Engine Performance
+                    </h2>
+                    <p className="text-white/60 text-sm mt-1">Live statistics from your AI investments</p>
+                  </div>
+                </div>
+                
+                <div className="grid gap-6 md:grid-cols-3 mb-6">
+                  <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <p className="text-sm text-white/60 mb-2">7-Day Growth</p>
+                    <p className={`text-2xl font-bold ${stats.ai_growth_7d >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {stats.ai_growth_7d >= 0 ? '+' : ''}${stats.ai_growth_7d.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <p className="text-sm text-white/60 mb-2">30-Day Growth</p>
+                    <p className={`text-2xl font-bold ${stats.ai_growth_30d >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {stats.ai_growth_30d >= 0 ? '+' : ''}${stats.ai_growth_30d.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <p className="text-sm text-white/60 mb-2">Total AI Returns</p>
+                    <p className={`text-2xl font-bold ${stats.total_ai_returns >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {stats.total_ai_returns >= 0 ? '+' : ''}${stats.total_ai_returns.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Recent AI Transactions */}
+                {stats.recent_transactions.filter(t => t.type.includes('investment')).length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">Recent AI Transactions</h3>
+                    <div className="space-y-2">
+                      {stats.recent_transactions
+                        .filter(t => t.type.includes('investment'))
+                        .slice(0, 5)
+                        .map((transaction) => (
+                          <div key={transaction.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
+                            <div className="flex-1">
+                              <p className="text-white text-sm">{transaction.description}</p>
+                              <p className="text-white/40 text-xs">{new Date(transaction.timestamp).toLocaleString()}</p>
+                            </div>
+                            <p className={`font-semibold ${transaction.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {transaction.amount >= 0 ? '+' : ''}${transaction.amount.toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Crypto Prices */}
+          {cryptoPrices.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mb-8"
+            >
+              <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <Coins className="w-6 h-6 text-yellow-300" />
+                      Major Cryptocurrencies
+                    </h2>
+                    <p className="text-white/60 text-sm mt-1">Live prices and 24h changes</p>
+                  </div>
+                </div>
+                
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  {cryptoPrices.map((crypto) => (
+                    <div key={crypto.symbol} className="bg-white/5 rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-all">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-semibold text-white">{crypto.symbol}</p>
+                          <p className="text-xs text-white/60">{crypto.name}</p>
+                        </div>
+                        {crypto.change_24h_pct >= 0 ? (
+                          <TrendingUp className="w-5 h-5 text-green-400" />
+                        ) : (
+                          <TrendingDown className="w-5 h-5 text-red-400" />
+                        )}
+                      </div>
+                      <p className="text-xl font-bold text-white mb-1">
+                        ${crypto.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 })}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm font-semibold ${crypto.change_24h_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {crypto.change_24h_pct >= 0 ? '+' : ''}{crypto.change_24h_pct.toFixed(2)}%
+                        </span>
+                        <span className="text-xs text-white/40">
+                          24h
+                        </span>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-white/10">
+                        <div className="flex justify-between text-xs text-white/60">
+                          <span>High: ${crypto.high_24h.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</span>
+                          <span>Low: ${crypto.low_24h.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 })}</span>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </div>
-              <TradingViewChart symbol="Account Equity" height={400} className="w-full" />
-            </Card>
-          </motion.div>
+              </Card>
+            </motion.div>
+          )}
 
+          {/* Performance Chart */}
+          {stats.has_deposits && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mb-8"
+            >
+              <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-white">Performance Chart</h2>
+                  <div className="flex gap-2">
+                    {timeframes.map((tf) => (
+                      <Button
+                        key={tf}
+                        variant={selectedTimeframe === tf ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedTimeframe(tf)}
+                        className={`${
+                          selectedTimeframe === tf
+                            ? 'bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white'
+                            : 'border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
+                        } transition-all duration-160`}
+                      >
+                        {tf}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <TradingViewChart symbol="Account Performance" height={400} className="w-full" />
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Recent Transactions */}
+          {stats.recent_transactions.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mb-8"
+            >
+              <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-white">Recent Transactions</h2>
+                  <Link href="/transactions" className="text-sm text-brand-blue-400 hover:text-brand-blue-300">
+                    View All →
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {stats.recent_transactions.slice(0, 10).map((transaction) => (
+                    <div key={transaction.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          transaction.amount >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'
+                        }`}>
+                          {transaction.amount >= 0 ? (
+                            <ArrowUpRight className="w-5 h-5 text-green-400" />
+                          ) : (
+                            <ArrowDownRight className="w-5 h-5 text-red-400" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white text-sm font-medium">{transaction.description}</p>
+                          <p className="text-white/40 text-xs">{new Date(transaction.timestamp).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-semibold ${transaction.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {transaction.amount >= 0 ? '+' : ''}${transaction.amount.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-white/40">Balance: ${transaction.balance_after.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Quick Actions */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.6 }}
             className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4"
           >
             <Link href="/trading">
@@ -265,111 +597,55 @@ export default function DashboardPage() {
             </Link>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55 }}
-            className="mt-8 grid gap-6 lg:grid-cols-3"
-          >
-            <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10 shadow-[0_15px_40px_rgba(15,23,42,0.45)]">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Business Wallet Exposure</h3>
-                  <p className="text-white/60 text-sm">Real capital held in custody vs. simulated equity.</p>
+          {/* Deposit Encouragement */}
+          {!stats.has_deposits && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="mt-8"
+            >
+              <Card className="p-8 bg-gradient-to-r from-brand-blue-500/20 to-brand-purple-500/20 border border-brand-blue-500/30 backdrop-blur-xl">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                      <Target className="w-6 h-6 text-yellow-300" />
+                      Start Trading Today
+                    </h3>
+                    <p className="text-white/80 mb-4">
+                      Make your first deposit to unlock AI-powered trading strategies. Our platform offers 
+                      institutional-grade tools to help you grow your capital.
+                    </p>
+                    <ul className="space-y-2 text-white/70 text-sm mb-4">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        Secure crypto deposits via NOWPayments
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        AI-powered investment strategies
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        Real-time market data and analytics
+                      </li>
+                    </ul>
+                    <Link href="/deposit">
+                      <Button className="bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Make Your First Deposit
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="text-center">
+                    <div className="w-32 h-32 bg-gradient-to-br from-brand-blue-500/30 to-brand-purple-500/30 rounded-full flex items-center justify-center mb-4">
+                      <Zap className="w-16 h-16 text-yellow-300" />
+                    </div>
+                  </div>
                 </div>
-                <Wallet className="w-6 h-6 text-cyan-300" />
-              </div>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Deposited Capital</span>
-                  <span className="text-white font-semibold">${accountStats.depositedAmount.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Virtual Equity</span>
-                  <span className="text-white font-semibold">${accountStats.virtualBalance.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Delta</span>
-                  <span className={`font-semibold ${accountStats.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {accountStats.totalPnL >= 0 ? '+' : ''}${accountStats.totalPnL.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10 shadow-[0_15px_40px_rgba(15,23,42,0.45)]">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">AI Strategy Pulse</h3>
-                  <p className="text-white/60 text-sm">Latest updates from your active AI allocations.</p>
-                </div>
-                <Bot className="w-6 h-6 text-purple-300" />
-              </div>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Active Plans</span>
-                  <span className="text-white font-semibold">3</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Weighted Return</span>
-                  <span className="text-green-400 font-semibold">+{accountStats.totalReturn.toFixed(1)}%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/60">Next Admin Update</span>
-                  <span className="text-white font-semibold">In 4h 12m</span>
-                </div>
-              </div>
-              <Link href="/ai-plans" className="inline-flex items-center text-sm text-brand-blue-300 hover:text-brand-purple-200 mt-4">
-                Manage allocations →
-              </Link>
-            </Card>
-
-            <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10 shadow-[0_15px_40px_rgba(15,23,42,0.45)]">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Risk &amp; Compliance</h3>
-                  <p className="text-white/60 text-sm">Stay compliant with CMF/MSB obligations.</p>
-                </div>
-                <Shield className="w-6 h-6 text-emerald-300" />
-              </div>
-              <ul className="space-y-3 text-sm text-white/70">
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-300" /> KYC Status: Auto-approved
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-300" /> AML Alerts: None detected
-                </li>
-                <li className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-yellow-300" /> Pending payout reviews: 1
-                </li>
-              </ul>
-              <Link href="/compliance" className="inline-flex items-center text-sm text-brand-blue-300 hover:text-brand-purple-200 mt-4">
-                Review compliance center →
-              </Link>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="mt-8"
-          >
-            <Card className="p-6 bg-yellow-500/10 border border-yellow-500/20 backdrop-blur-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-6 h-6 text-yellow-300 flex-shrink-0 mt-1" />
-                <div>
-                  <h3 className="text-yellow-200 font-semibold text-base">Risk Reminder</h3>
-                  <p className="text-yellow-100/80 text-sm">
-                    Trading remains simulated, but your deposits are real. Keep leverage within your risk tolerance and review our withdrawal SLA in case of large payouts.
-                  </p>
-                </div>
-              </div>
-              <Link href="/legal/risk-disclosure" className="text-sm text-yellow-100 hover:text-white underline">
-                Read full disclosure
-              </Link>
-            </Card>
-          </motion.div>
+              </Card>
+            </motion.div>
+          )}
         </main>
       </div>
     </div>

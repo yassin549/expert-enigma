@@ -20,7 +20,8 @@ import InvestmentPlanManager from './InvestmentPlanManager'
 
 interface AdminStats {
   total_deposits: number
-  total_virtual_balances: number
+  total_ai_investments: number
+  total_ai_returns: number
   delta: number
   delta_pct: number
   active_users: number
@@ -47,7 +48,8 @@ const formatPercentage = (pct: number) => {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats>({
     total_deposits: 2450000,
-    total_virtual_balances: 2680000,
+    total_ai_investments: 2100000,
+    total_ai_returns: 230000,
     delta: 230000,
     delta_pct: 9.39,
     active_users: 1247,
@@ -137,14 +139,14 @@ export default function AdminDashboard() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Virtual Balances</p>
+                      <p className="text-sm font-medium text-gray-600">AI Investments</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {formatCurrency(stats.total_virtual_balances)}
+                        {formatCurrency(stats.total_ai_investments)}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">Trading balances</p>
+                      <p className="text-xs text-gray-500 mt-1">Total AI returns: {formatCurrency(stats.total_ai_returns)}</p>
                     </div>
-                    <div className="p-3 bg-blue-100 rounded-full">
-                      <BarChart3 className="h-6 w-6 text-blue-600" />
+                    <div className="p-3 bg-purple-100 rounded-full">
+                      <Bot className="h-6 w-6 text-purple-600" />
                     </div>
                   </div>
                 </CardContent>
