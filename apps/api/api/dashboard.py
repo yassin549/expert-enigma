@@ -24,64 +24,52 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Pydantic models for request/response
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel
 
 
 class DashboardStatsResponse(BaseModel):
     # Real deposit data
-    total_deposited: Decimal
+    total_deposited: float
     total_deposits_count: int
     last_deposit_date: Optional[datetime]
-    last_deposit_amount: Optional[Decimal]
+    last_deposit_amount: Optional[float]
     
     # AI Engine Statistics
-    total_ai_investments: Decimal
+    total_ai_investments: float
     active_ai_plans: int
-    total_ai_returns: Decimal
-    total_ai_return_pct: Decimal
-    ai_growth_7d: Decimal
-    ai_growth_30d: Decimal
+    total_ai_returns: float
+    total_ai_return_pct: float
+    ai_growth_7d: float
+    ai_growth_30d: float
     
     # Live Transactions
     recent_transactions: List[Dict[str, Any]]
     transaction_count_24h: int
-    transaction_volume_24h: Decimal
+    transaction_volume_24h: float
     
     # Performance Metrics
-    total_pnl: Decimal
-    total_return_pct: Decimal
-    win_rate: Decimal
+    total_pnl: float
+    total_return_pct: float
+    win_rate: float
     total_trades: int
     
     # Account Status
     has_deposits: bool
     can_trade: bool
     account_created_at: Optional[datetime]
-    
-    @field_serializer('total_deposited', 'last_deposit_amount', 'total_ai_investments', 
-                      'total_ai_returns', 'total_ai_return_pct', 'ai_growth_7d', 
-                      'ai_growth_30d', 'transaction_volume_24h', 'total_pnl', 
-                      'total_return_pct', 'win_rate', when_used='json')
-    def serialize_decimal(self, value: Optional[Decimal]) -> Optional[float]:
-        return float(value) if value is not None else None
 
 
 class CryptoPriceResponse(BaseModel):
     symbol: str
     name: str
-    price: Decimal
-    change_24h: Decimal
-    change_24h_pct: Decimal
-    volume_24h: Decimal
-    market_cap: Optional[Decimal]
-    high_24h: Decimal
-    low_24h: Decimal
+    price: float
+    change_24h: float
+    change_24h_pct: float
+    volume_24h: float
+    market_cap: Optional[float]
+    high_24h: float
+    low_24h: float
     last_updated: datetime
-    
-    @field_serializer('price', 'change_24h', 'change_24h_pct', 'volume_24h', 
-                      'market_cap', 'high_24h', 'low_24h', when_used='json')
-    def serialize_decimal(self, value: Optional[Decimal]) -> Optional[float]:
-        return float(value) if value is not None else None
 
 
 @router.get("/stats", response_model=DashboardStatsResponse)
@@ -223,28 +211,30 @@ async def get_dashboard_stats(
             can_trade = False
             account_created_at = None
         
-        return DashboardStatsResponse(
-            total_deposited=total_deposited,
+        # Convert Decimal to float for JSON serialization
+        response_data = DashboardStatsResponse(
+            total_deposited=float(total_deposited),
             total_deposits_count=total_deposits_count,
             last_deposit_date=last_deposit_date,
-            last_deposit_amount=last_deposit_amount,
-            total_ai_investments=total_ai_investments,
+            last_deposit_amount=float(last_deposit_amount) if last_deposit_amount else None,
+            total_ai_investments=float(total_ai_investments),
             active_ai_plans=active_ai_plans,
-            total_ai_returns=total_ai_returns,
-            total_ai_return_pct=total_ai_return_pct,
-            ai_growth_7d=ai_growth_7d,
-            ai_growth_30d=ai_growth_30d,
+            total_ai_returns=float(total_ai_returns),
+            total_ai_return_pct=float(total_ai_return_pct),
+            ai_growth_7d=float(ai_growth_7d),
+            ai_growth_30d=float(ai_growth_30d),
             recent_transactions=recent_transactions,
             transaction_count_24h=transaction_count_24h,
-            transaction_volume_24h=transaction_volume_24h,
-            total_pnl=total_pnl,
-            total_return_pct=total_return_pct,
-            win_rate=win_rate,
+            transaction_volume_24h=float(transaction_volume_24h),
+            total_pnl=float(total_pnl),
+            total_return_pct=float(total_return_pct),
+            win_rate=float(win_rate),
             total_trades=total_trades,
             has_deposits=total_deposits_count > 0,
             can_trade=can_trade,
             account_created_at=account_created_at
         )
+        return response_data
     except HTTPException:
         # Re-raise HTTP exceptions (like auth errors)
         raise
@@ -253,22 +243,22 @@ async def get_dashboard_stats(
         # Return a default response instead of raising an error
         # This ensures the dashboard can still load even if there's a data issue
         return DashboardStatsResponse(
-            total_deposited=Decimal("0.00"),
+            total_deposited=0.0,
             total_deposits_count=0,
             last_deposit_date=None,
             last_deposit_amount=None,
-            total_ai_investments=Decimal("0.00"),
+            total_ai_investments=0.0,
             active_ai_plans=0,
-            total_ai_returns=Decimal("0.00"),
-            total_ai_return_pct=Decimal("0.00"),
-            ai_growth_7d=Decimal("0.00"),
-            ai_growth_30d=Decimal("0.00"),
+            total_ai_returns=0.0,
+            total_ai_return_pct=0.0,
+            ai_growth_7d=0.0,
+            ai_growth_30d=0.0,
             recent_transactions=[],
             transaction_count_24h=0,
-            transaction_volume_24h=Decimal("0.00"),
-            total_pnl=Decimal("0.00"),
-            total_return_pct=Decimal("0.00"),
-            win_rate=Decimal("0.00"),
+            transaction_volume_24h=0.0,
+            total_pnl=0.0,
+            total_return_pct=0.0,
+            win_rate=0.0,
             total_trades=0,
             has_deposits=False,
             can_trade=False,
@@ -323,13 +313,13 @@ async def get_crypto_prices(
                         prices.append(CryptoPriceResponse(
                             symbol=coin["symbol"],
                             name=coin["name"],
-                            price=price,
-                            change_24h=change_24h,
-                            change_24h_pct=change_24h_pct,
-                            volume_24h=Decimal(str(coin_data.get("usd_24h_vol", 0))),
-                            market_cap=Decimal(str(coin_data.get("usd_market_cap", 0))) if coin_data.get("usd_market_cap") else None,
-                            high_24h=price * Decimal("1.05"),  # Approximate high
-                            low_24h=price * Decimal("0.95"),   # Approximate low
+                            price=float(price),
+                            change_24h=float(change_24h),
+                            change_24h_pct=float(change_24h_pct),
+                            volume_24h=float(coin_data.get("usd_24h_vol", 0)),
+                            market_cap=float(coin_data.get("usd_market_cap", 0)) if coin_data.get("usd_market_cap") else None,
+                            high_24h=float(price * Decimal("1.05")),  # Approximate high
+                            low_24h=float(price * Decimal("0.95")),   # Approximate low
                             last_updated=datetime.utcnow()
                         ))
                 
@@ -357,13 +347,13 @@ async def get_crypto_prices(
             prices.append(CryptoPriceResponse(
                 symbol=symbol,
                 name=coin["name"],
-                price=Decimal(str(mock["price"])),
-                change_24h=Decimal(str(mock["change"])),
-                change_24h_pct=Decimal(str(mock["change"])),
-                volume_24h=Decimal(str(mock["vol"])),
+                price=float(mock["price"]),
+                change_24h=float(mock["change"]),
+                change_24h_pct=float(mock["change"]),
+                volume_24h=float(mock["vol"]),
                 market_cap=None,
-                high_24h=Decimal(str(mock["high"])),
-                low_24h=Decimal(str(mock["low"])),
+                high_24h=float(mock["high"]),
+                low_24h=float(mock["low"]),
                 last_updated=datetime.utcnow()
             ))
     
