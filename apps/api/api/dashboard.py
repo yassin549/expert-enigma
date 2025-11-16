@@ -4,14 +4,15 @@ Real-time dashboard statistics with real deposit data and AI engine metrics
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select, func
+from sqlmodel import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
 
 from core.database import get_session
-from core.dependencies import get_current_user
+from core.dependencies import get_current_user, get_optional_current_user
 from models.user import User
 from models.account import Account
 from models.deposit import Deposit, DepositStatus
@@ -72,154 +73,175 @@ class CryptoPriceResponse(BaseModel):
 
 
 @router.get("/stats", response_model=DashboardStatsResponse)
-def get_dashboard_stats(
+async def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Get comprehensive dashboard statistics with real deposit data and AI engine metrics
     """
     logger.info(f"Fetching dashboard stats for user {current_user.id}")
     
-    # Get user's account
-    account = session.exec(
-        select(Account).where(Account.user_id == current_user.id)
-    ).first()
-    
-    # Get all confirmed deposits
-    deposits = session.exec(
-        select(Deposit)
-        .where(Deposit.user_id == current_user.id)
-        .where(Deposit.status == DepositStatus.CONFIRMED)
-        .order_by(Deposit.confirmed_at.desc())
-    ).all()
-    
-    # Calculate real deposit totals
-    total_deposited = sum(d.amount_usd for d in deposits) if deposits else Decimal("0.00")
-    total_deposits_count = len(deposits)
-    last_deposit = deposits[0] if deposits else None
-    last_deposit_date = last_deposit.confirmed_at if last_deposit else None
-    last_deposit_amount = last_deposit.amount_usd if last_deposit else None
-    
-    # Get AI Investment statistics
-    user_investments = session.exec(
-        select(UserInvestment, AIInvestmentPlan)
-        .join(AIInvestmentPlan, UserInvestment.plan_id == AIInvestmentPlan.id)
-        .where(
-            UserInvestment.user_id == current_user.id,
-            UserInvestment.is_active == True
+    try:
+        # Get user's account
+        result = await session.execute(
+            select(Account).where(Account.user_id == current_user.id)
         )
-    ).all()
-    
-    total_ai_investments = sum(inv.allocated_amount for inv, _ in user_investments) if user_investments else Decimal("0.00")
-    total_ai_current_value = sum(inv.current_value for inv, _ in user_investments) if user_investments else Decimal("0.00")
-    total_ai_returns = total_ai_current_value - total_ai_investments
-    total_ai_return_pct = (total_ai_returns / total_ai_investments * 100) if total_ai_investments > 0 else Decimal("0.00")
-    
-    # Get unique active plans
-    active_plan_ids = set(inv.plan_id for inv, _ in user_investments)
-    active_ai_plans = len(active_plan_ids)
-    
-    # Calculate AI growth over time periods
-    now = datetime.utcnow()
-    seven_days_ago = now - timedelta(days=7)
-    thirty_days_ago = now - timedelta(days=30)
-    
-    # Get ledger entries for AI returns in last 7 days
-    ai_returns_7d = session.exec(
-        select(LedgerEntry)
-        .where(LedgerEntry.user_id == current_user.id)
-        .where(LedgerEntry.entry_type == EntryType.INVESTMENT_RETURN)
-        .where(LedgerEntry.created_at >= seven_days_ago)
-    ).all()
-    ai_growth_7d = sum(entry.amount for entry in ai_returns_7d) if ai_returns_7d else Decimal("0.00")
-    
-    # Get ledger entries for AI returns in last 30 days
-    ai_returns_30d = session.exec(
-        select(LedgerEntry)
-        .where(LedgerEntry.user_id == current_user.id)
-        .where(LedgerEntry.entry_type == EntryType.INVESTMENT_RETURN)
-        .where(LedgerEntry.created_at >= thirty_days_ago)
-    ).all()
-    ai_growth_30d = sum(entry.amount for entry in ai_returns_30d) if ai_returns_30d else Decimal("0.00")
-    
-    # Get recent transactions (last 10)
-    recent_ledger_entries = session.exec(
-        select(LedgerEntry)
-        .where(LedgerEntry.user_id == current_user.id)
-        .order_by(LedgerEntry.created_at.desc())
-        .limit(10)
-    ).all()
-    
-    recent_transactions = []
-    for entry in recent_ledger_entries:
-        recent_transactions.append({
-            "id": entry.id,
-            "type": entry.entry_type.value,
-            "amount": float(entry.amount),
-            "description": entry.description,
-            "timestamp": entry.created_at.isoformat(),
-            "balance_after": float(entry.balance_after)
-        })
-    
-    # Get transaction stats for last 24 hours
-    twenty_four_hours_ago = now - timedelta(hours=24)
-    transactions_24h = session.exec(
-        select(LedgerEntry)
-        .where(LedgerEntry.user_id == current_user.id)
-        .where(LedgerEntry.created_at >= twenty_four_hours_ago)
-    ).all()
-    
-    transaction_count_24h = len(transactions_24h)
-    transaction_volume_24h = sum(abs(entry.amount) for entry in transactions_24h) if transactions_24h else Decimal("0.00")
-    
-    # Get trading performance metrics
-    if account:
-        total_pnl = account.total_pnl
-        total_trades = account.total_trades
-        winning_trades = account.winning_trades
-        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else Decimal("0.00")
+        account = result.scalar_one_or_none()
         
-        # Calculate total return percentage based on deposits
-        total_return_pct = (total_pnl / total_deposited * 100) if total_deposited > 0 else Decimal("0.00")
-        can_trade = account.deposited_amount > 0
-        account_created_at = account.created_at
-    else:
-        total_pnl = Decimal("0.00")
-        total_trades = 0
-        win_rate = Decimal("0.00")
-        total_return_pct = Decimal("0.00")
-        can_trade = False
-        account_created_at = None
-    
-    return DashboardStatsResponse(
-        total_deposited=total_deposited,
-        total_deposits_count=total_deposits_count,
-        last_deposit_date=last_deposit_date,
-        last_deposit_amount=last_deposit_amount,
-        total_ai_investments=total_ai_investments,
-        active_ai_plans=active_ai_plans,
-        total_ai_returns=total_ai_returns,
-        total_ai_return_pct=total_ai_return_pct,
-        ai_growth_7d=ai_growth_7d,
-        ai_growth_30d=ai_growth_30d,
-        recent_transactions=recent_transactions,
-        transaction_count_24h=transaction_count_24h,
-        transaction_volume_24h=transaction_volume_24h,
-        total_pnl=total_pnl,
-        total_return_pct=total_return_pct,
-        win_rate=win_rate,
-        total_trades=total_trades,
-        has_deposits=total_deposits_count > 0,
-        can_trade=can_trade,
-        account_created_at=account_created_at
-    )
+        # Get all confirmed deposits
+        deposits_result = await session.execute(
+            select(Deposit)
+            .where(Deposit.user_id == current_user.id)
+            .where(Deposit.status == DepositStatus.CONFIRMED)
+            .order_by(Deposit.confirmed_at.desc())
+        )
+        deposits = deposits_result.scalars().all()
+        
+        # Calculate real deposit totals
+        total_deposited = sum(d.amount_usd for d in deposits) if deposits else Decimal("0.00")
+        total_deposits_count = len(deposits)
+        last_deposit = deposits[0] if deposits else None
+        last_deposit_date = last_deposit.confirmed_at if last_deposit else None
+        last_deposit_amount = last_deposit.amount_usd if last_deposit else None
+        
+        # Get AI Investment statistics
+        investments_result = await session.execute(
+            select(UserInvestment)
+            .where(UserInvestment.user_id == current_user.id)
+            .where(UserInvestment.is_active == True)
+        )
+        user_investments_list = investments_result.scalars().all()
+        
+        # Get plan details for each investment
+        total_ai_investments = Decimal("0.00")
+        total_ai_current_value = Decimal("0.00")
+        active_plan_ids = set()
+        
+        for inv in user_investments_list:
+            plan_result = await session.execute(
+                select(AIInvestmentPlan).where(AIInvestmentPlan.id == inv.plan_id)
+            )
+            plan = plan_result.scalar_one_or_none()
+            if plan:
+                total_ai_investments += inv.allocated_amount
+                total_ai_current_value += inv.current_value
+                active_plan_ids.add(inv.plan_id)
+        
+        total_ai_returns = total_ai_current_value - total_ai_investments
+        total_ai_return_pct = (total_ai_returns / total_ai_investments * 100) if total_ai_investments > 0 else Decimal("0.00")
+        active_ai_plans = len(active_plan_ids)
+        
+        # Calculate AI growth over time periods
+        now = datetime.utcnow()
+        seven_days_ago = now - timedelta(days=7)
+        thirty_days_ago = now - timedelta(days=30)
+        
+        # Get ledger entries for AI returns in last 7 days
+        ai_returns_7d_result = await session.execute(
+            select(LedgerEntry)
+            .where(LedgerEntry.user_id == current_user.id)
+            .where(LedgerEntry.entry_type == EntryType.INVESTMENT_RETURN)
+            .where(LedgerEntry.created_at >= seven_days_ago)
+        )
+        ai_returns_7d = ai_returns_7d_result.scalars().all()
+        ai_growth_7d = sum(entry.amount for entry in ai_returns_7d) if ai_returns_7d else Decimal("0.00")
+        
+        # Get ledger entries for AI returns in last 30 days
+        ai_returns_30d_result = await session.execute(
+            select(LedgerEntry)
+            .where(LedgerEntry.user_id == current_user.id)
+            .where(LedgerEntry.entry_type == EntryType.INVESTMENT_RETURN)
+            .where(LedgerEntry.created_at >= thirty_days_ago)
+        )
+        ai_returns_30d = ai_returns_30d_result.scalars().all()
+        ai_growth_30d = sum(entry.amount for entry in ai_returns_30d) if ai_returns_30d else Decimal("0.00")
+        
+        # Get recent transactions (last 10)
+        recent_ledger_result = await session.execute(
+            select(LedgerEntry)
+            .where(LedgerEntry.user_id == current_user.id)
+            .order_by(LedgerEntry.created_at.desc())
+            .limit(10)
+        )
+        recent_ledger_entries = recent_ledger_result.scalars().all()
+        
+        recent_transactions = []
+        for entry in recent_ledger_entries:
+            recent_transactions.append({
+                "id": entry.id,
+                "type": entry.entry_type.value,
+                "amount": float(entry.amount),
+                "description": entry.description,
+                "timestamp": entry.created_at.isoformat(),
+                "balance_after": float(entry.balance_after)
+            })
+        
+        # Get transaction stats for last 24 hours
+        twenty_four_hours_ago = now - timedelta(hours=24)
+        transactions_24h_result = await session.execute(
+            select(LedgerEntry)
+            .where(LedgerEntry.user_id == current_user.id)
+            .where(LedgerEntry.created_at >= twenty_four_hours_ago)
+        )
+        transactions_24h = transactions_24h_result.scalars().all()
+        
+        transaction_count_24h = len(transactions_24h)
+        transaction_volume_24h = sum(abs(entry.amount) for entry in transactions_24h) if transactions_24h else Decimal("0.00")
+        
+        # Get trading performance metrics
+        if account:
+            total_pnl = account.total_pnl
+            total_trades = account.total_trades
+            winning_trades = account.winning_trades
+            win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else Decimal("0.00")
+            
+            # Calculate total return percentage based on deposits
+            total_return_pct = (total_pnl / total_deposited * 100) if total_deposited > 0 else Decimal("0.00")
+            can_trade = account.deposited_amount > 0
+            account_created_at = account.created_at
+        else:
+            total_pnl = Decimal("0.00")
+            total_trades = 0
+            win_rate = Decimal("0.00")
+            total_return_pct = Decimal("0.00")
+            can_trade = False
+            account_created_at = None
+        
+        return DashboardStatsResponse(
+            total_deposited=total_deposited,
+            total_deposits_count=total_deposits_count,
+            last_deposit_date=last_deposit_date,
+            last_deposit_amount=last_deposit_amount,
+            total_ai_investments=total_ai_investments,
+            active_ai_plans=active_ai_plans,
+            total_ai_returns=total_ai_returns,
+            total_ai_return_pct=total_ai_return_pct,
+            ai_growth_7d=ai_growth_7d,
+            ai_growth_30d=ai_growth_30d,
+            recent_transactions=recent_transactions,
+            transaction_count_24h=transaction_count_24h,
+            transaction_volume_24h=transaction_volume_24h,
+            total_pnl=total_pnl,
+            total_return_pct=total_return_pct,
+            win_rate=win_rate,
+            total_trades=total_trades,
+            has_deposits=total_deposits_count > 0,
+            can_trade=can_trade,
+            account_created_at=account_created_at
+        )
+    except Exception as e:
+        logger.error(f"Error fetching dashboard stats for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch dashboard statistics: {str(e)}"
+        )
 
 
 @router.get("/crypto-prices", response_model=List[CryptoPriceResponse])
-def get_crypto_prices(
-    current_user: Optional[User] = Depends(get_current_user),
-    session: Session = Depends(get_session)
+async def get_crypto_prices(
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Get current prices for major cryptocurrencies
@@ -308,4 +330,5 @@ def get_crypto_prices(
             ))
     
     return prices
+
 

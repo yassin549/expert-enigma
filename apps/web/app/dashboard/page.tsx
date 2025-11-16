@@ -83,7 +83,14 @@ export default function DashboardPage() {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('token')
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/dashboard/stats`, {
+        if (!token) {
+          console.error('No authentication token found')
+          setLoading(false)
+          return
+        }
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const response = await fetch(`${apiUrl}/api/dashboard/stats`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -93,9 +100,14 @@ export default function DashboardPage() {
         if (response.ok) {
           const data = await response.json()
           setStats(data)
+        } else {
+          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+          console.error('Failed to fetch dashboard stats:', response.status, errorData)
+          // Don't set stats to null here, let it show error state
         }
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error)
+        // Network error or other exception
       } finally {
         setLoading(false)
       }
@@ -111,16 +123,25 @@ export default function DashboardPage() {
     const fetchCryptoPrices = async () => {
       try {
         const token = localStorage.getItem('token')
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/dashboard/crypto-prices`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json'
+        }
+        
+        // Add auth header if token exists (crypto prices endpoint accepts optional auth)
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+        
+        const response = await fetch(`${apiUrl}/api/dashboard/crypto-prices`, {
+          headers
         })
         
         if (response.ok) {
           const data = await response.json()
           setCryptoPrices(data)
+        } else {
+          console.error('Failed to fetch crypto prices:', response.status)
         }
       } catch (error) {
         console.error('Failed to fetch crypto prices:', error)
@@ -145,12 +166,29 @@ export default function DashboardPage() {
     )
   }
 
-  if (!stats) {
+  if (!stats && !loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto px-4">
           <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
-          <p className="text-white/60">Failed to load dashboard data</p>
+          <h2 className="text-xl font-bold text-white mb-2">Failed to load dashboard data</h2>
+          <p className="text-white/60 mb-4">
+            Please check your internet connection and try refreshing the page. 
+            If the problem persists, you may need to log in again.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="bg-brand-blue-500 hover:bg-brand-blue-600"
+            >
+              Refresh Page
+            </Button>
+            <Link href="/auth/signin">
+              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
+                Sign In Again
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     )
@@ -250,10 +288,10 @@ export default function DashboardPage() {
                   Deposited: ${stats.total_deposited.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 {stats.active_ai_plans > 0 && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-full text-white/70 text-sm">
-                    <Bot className="w-4 h-4 text-purple-300" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-white/10 rounded-full text-white/70 text-sm">
+                  <Bot className="w-4 h-4 text-purple-300" />
                     AI Return: {stats.total_ai_return_pct >= 0 ? '+' : ''}{stats.total_ai_return_pct.toFixed(2)}%
-                  </div>
+                </div>
                 )}
               </div>
             </div>
@@ -287,16 +325,16 @@ export default function DashboardPage() {
                   </div>
                   <p className="text-2xl font-bold text-white mb-1">
                     ${stats.total_ai_investments.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <div className="flex items-center gap-1">
+                </p>
+                <div className="flex items-center gap-1">
                     {stats.total_ai_return_pct >= 0 ? (
-                      <ArrowUpRight className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <ArrowDownRight className="w-4 h-4 text-red-400" />
-                    )}
+                    <ArrowUpRight className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <ArrowDownRight className="w-4 h-4 text-red-400" />
+                  )}
                     <span className={`text-sm ${stats.total_ai_return_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {stats.total_ai_return_pct >= 0 ? '+' : ''}{stats.total_ai_return_pct.toFixed(2)}% return
-                    </span>
+                  </span>
                   </div>
                   <p className="text-xs text-white/40 mt-1">
                     {stats.active_ai_plans} active plan{stats.active_ai_plans !== 1 ? 's' : ''}
@@ -356,14 +394,14 @@ export default function DashboardPage() {
 
           {/* AI Engine Statistics */}
           {stats.total_ai_investments > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="mb-8"
-            >
-              <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
-                <div className="flex items-center justify-between mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mb-8"
+          >
+            <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
+              <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                       <Bot className="w-6 h-6 text-purple-300" />
@@ -488,24 +526,24 @@ export default function DashboardPage() {
               <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-white">Performance Chart</h2>
-                  <div className="flex gap-2">
-                    {timeframes.map((tf) => (
-                      <Button
-                        key={tf}
-                        variant={selectedTimeframe === tf ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSelectedTimeframe(tf)}
-                        className={`${
-                          selectedTimeframe === tf
-                            ? 'bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white'
-                            : 'border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
-                        } transition-all duration-160`}
-                      >
-                        {tf}
-                      </Button>
-                    ))}
-                  </div>
+                <div className="flex gap-2">
+                  {timeframes.map((tf) => (
+                    <Button
+                      key={tf}
+                      variant={selectedTimeframe === tf ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedTimeframe(tf)}
+                      className={`${
+                        selectedTimeframe === tf
+                          ? 'bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white'
+                          : 'border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
+                      } transition-all duration-160`}
+                    >
+                      {tf}
+                    </Button>
+                  ))}
                 </div>
+              </div>
                 <TradingViewChart symbol="Account Performance" height={400} className="w-full" />
               </Card>
             </motion.div>
@@ -553,8 +591,8 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              </Card>
-            </motion.div>
+            </Card>
+          </motion.div>
           )}
 
           {/* Quick Actions */}
@@ -599,12 +637,12 @@ export default function DashboardPage() {
 
           {/* Deposit Encouragement */}
           {!stats.has_deposits && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="mt-8"
-            >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="mt-8"
+          >
               <Card className="p-8 bg-gradient-to-r from-brand-blue-500/20 to-brand-purple-500/20 border border-brand-blue-500/30 backdrop-blur-xl">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                   <div className="flex-1">
@@ -643,8 +681,8 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
-              </Card>
-            </motion.div>
+            </Card>
+          </motion.div>
           )}
         </main>
       </div>
