@@ -84,11 +84,61 @@ async def init_db() -> None:
                             # Release the async connection and use sync engine for migrations
                             await conn.commit()
                             
-                            # Run migrations using sync engine (Alembic needs sync)
+                            # Check current migration version
+                            from alembic.script import ScriptDirectory
+                            from alembic.runtime.migration import MigrationContext
+                            
                             alembic_cfg = Config(alembic_ini_path)
                             alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-                            command.upgrade(alembic_cfg, "head")
-                            logger.info("✅ Database migrations completed")
+                            
+                            with sync_engine.connect() as sync_conn:
+                                context = MigrationContext.configure(sync_conn)
+                                current_rev = context.get_current_revision()
+                                script = ScriptDirectory.from_config(alembic_cfg)
+                                head_rev = script.get_current_head()
+                                
+                                logger.info(f"📊 Current migration: {current_rev}, Target: {head_rev}")
+                                
+                                if current_rev != head_rev:
+                                    # Run migrations using sync engine (Alembic needs sync)
+                                    command.upgrade(alembic_cfg, "head")
+                                    logger.info("✅ Database migrations completed")
+                                    
+                                    # Verify we're at head
+                                    context = MigrationContext.configure(sync_conn)
+                                    new_rev = context.get_current_revision()
+                                    if new_rev == head_rev:
+                                        logger.info(f"✅ Verified at migration head: {new_rev}")
+                                    else:
+                                        logger.warning(f"⚠️  Migration may not have completed. Current: {new_rev}, Expected: {head_rev}")
+                                else:
+                                    logger.info("✅ Database already at migration head")
+                            
+                            # Ensure 2FA columns exist (fallback if migration didn't add them)
+                            with sync_engine.connect() as sync_conn:
+                                # Check if columns exist
+                                result = sync_conn.execute(sa_text("""
+                                    SELECT column_name 
+                                    FROM information_schema.columns 
+                                    WHERE table_name = 'users' AND column_name IN ('totp_secret', 'is_2fa_enabled', 'two_factor_backup_codes')
+                                """))
+                                existing_columns = {row[0] for row in result}
+                                
+                                missing_columns = {'totp_secret', 'is_2fa_enabled', 'two_factor_backup_codes'} - existing_columns
+                                
+                                if missing_columns:
+                                    logger.warning(f"⚠️  Missing 2FA columns: {missing_columns}, adding them directly...")
+                                    for col in missing_columns:
+                                        if col == 'totp_secret':
+                                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(100)"))
+                                        elif col == 'is_2fa_enabled':
+                                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_2fa_enabled BOOLEAN NOT NULL DEFAULT false"))
+                                        elif col == 'two_factor_backup_codes':
+                                            sync_conn.execute(sa_text("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_backup_codes VARCHAR(500)"))
+                                    sync_conn.commit()
+                                    logger.info("✅ 2FA columns added successfully")
+                                else:
+                                    logger.info("✅ All 2FA columns exist")
                         finally:
                             # Release the advisory lock
                             with sync_engine.connect() as sync_conn:
