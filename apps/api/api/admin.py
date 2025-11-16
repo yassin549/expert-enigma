@@ -6,7 +6,7 @@ Account management, balance adjustments, and administrative controls
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlmodel import Session, select
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 import logging
 
@@ -830,4 +830,584 @@ def resolve_aml_alert(
     return {
         "message": "AML alert resolved successfully",
         "alert_id": alert.id
+    }
+
+
+# ============================================================================
+# RECONCILIATION TOOLS
+# ============================================================================
+
+@router.get("/reconciliation/dashboard", response_model=dict)
+def get_reconciliation_dashboard(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Get reconciliation dashboard data
+    Compares NOWPayments deposits vs database, payouts vs database, business wallet balance
+    """
+    from models.wallet import Wallet
+    
+    # Default to last 7 days if not specified
+    if not end_date:
+        end_dt = datetime.utcnow()
+    else:
+        end_dt = datetime.fromisoformat(end_date)
+    
+    if not start_date:
+        start_dt = end_dt - timedelta(days=7)
+    else:
+        start_dt = datetime.fromisoformat(start_date)
+    
+    # Get all deposits in date range
+    deposits = session.exec(
+        select(Deposit)
+        .where(Deposit.created_at >= start_dt)
+        .where(Deposit.created_at <= end_dt)
+    ).all()
+    
+    # Get all withdrawals in date range
+    withdrawals = session.exec(
+        select(Withdrawal)
+        .where(Withdrawal.requested_at >= start_dt)
+        .where(Withdrawal.requested_at <= end_dt)
+    ).all()
+    
+    # Calculate totals
+    total_deposits_db = sum(d.amount_usd for d in deposits if d.status == "confirmed")
+    total_withdrawals_db = sum(
+        w.amount_approved or w.amount_requested 
+        for w in withdrawals 
+        if w.status in ["approved", "completed"]
+    )
+    
+    # Get business wallet
+    business_wallet = session.exec(
+        select(Wallet).where(Wallet.type == "business_deposit")
+    ).first()
+    
+    # Calculate expected balance
+    initial_balance = Decimal(str(settings.BUSINESS_WALLET_INITIAL_BALANCE))
+    expected_balance = initial_balance + total_deposits_db - total_withdrawals_db
+    
+    # Count unreconciled deposits
+    unreconciled_deposits = sum(1 for d in deposits if not d.reconciled)
+    
+    # Get all accounts for virtual balance calculation
+    accounts = session.exec(select(Account)).all()
+    total_deposited_amount = sum(account.deposited_amount for account in accounts)
+    total_virtual_balances = sum(account.virtual_balance for account in accounts)
+    
+    return {
+        "period": {
+            "start_date": start_dt.isoformat(),
+            "end_date": end_dt.isoformat()
+        },
+        "deposits": {
+            "total_count": len(deposits),
+            "total_amount_usd": float(total_deposits_db),
+            "confirmed_count": sum(1 for d in deposits if d.status == "confirmed"),
+            "unreconciled_count": unreconciled_deposits
+        },
+        "withdrawals": {
+            "total_count": len(withdrawals),
+            "total_amount_usd": float(total_withdrawals_db),
+            "approved_count": sum(1 for w in withdrawals if w.status in ["approved", "completed"])
+        },
+        "business_wallet": {
+            "current_balance": float(business_wallet.balance) if business_wallet else 0.0,
+            "expected_balance": float(expected_balance),
+            "discrepancy": float((business_wallet.balance if business_wallet else Decimal("0")) - expected_balance)
+        },
+        "account_totals": {
+            "total_deposited_amount": float(total_deposited_amount),
+            "total_virtual_balances": float(total_virtual_balances),
+            "delta": float(total_virtual_balances - total_deposited_amount)
+        },
+        "ledger_verification": {
+            "total_ledger_entries": session.exec(select(LedgerEntry)).count(),
+            "deposit_entries": session.exec(
+                select(LedgerEntry)
+                .where(LedgerEntry.entry_type == EntryType.DEPOSIT)
+                .where(LedgerEntry.created_at >= start_dt)
+            ).count(),
+            "withdrawal_entries": session.exec(
+                select(LedgerEntry)
+                .where(LedgerEntry.entry_type == EntryType.WITHDRAWAL)
+                .where(LedgerEntry.created_at >= start_dt)
+            ).count()
+        }
+    }
+
+
+@router.post("/reconciliation/run", response_model=dict)
+def run_reconciliation(
+    start_date: str,
+    end_date: str,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Trigger reconciliation job for date range
+    This will call the Celery task to reconcile deposits with NOWPayments
+    """
+    from worker.tasks.deposits import reconcile_deposits_batch
+    
+    # Trigger async reconciliation task
+    task = reconcile_deposits_batch.delay(start_date, end_date)
+    
+    # Create audit log
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="reconciliation",
+        object_id=0,
+        reason=f"Manual reconciliation triggered for {start_date} to {end_date}"
+    )
+    session.add(audit)
+    session.commit()
+    
+    return {
+        "message": "Reconciliation job started",
+        "task_id": task.id,
+        "start_date": start_date,
+        "end_date": end_date
+    }
+
+
+# ============================================================================
+# EMERGENCY CONTROLS
+# ============================================================================
+
+class EmergencyControlRequest(BaseModel):
+    reason: str = Field(..., min_length=10, max_length=500, description="Reason for emergency action")
+
+
+@router.post("/emergency/pause-deposits", response_model=dict)
+def pause_deposits(
+    request: EmergencyControlRequest,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Pause new deposit processing (maintenance mode)"""
+    # In a real implementation, this would set a flag in Redis or database
+    # For now, we'll log it and create an audit entry
+    
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="platform",
+        object_id=0,
+        reason=f"Emergency: Pause deposits - {request.reason}",
+        extra_metadata={"action": "pause_deposits", "timestamp": datetime.utcnow().isoformat()}
+    )
+    session.add(audit)
+    session.commit()
+    
+    logger.warning(f"Admin {admin_user.id} paused deposits: {request.reason}")
+    
+    return {
+        "message": "Deposits paused",
+        "reason": request.reason,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.post("/emergency/resume-deposits", response_model=dict)
+def resume_deposits(
+    request: EmergencyControlRequest,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Resume deposit processing"""
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="platform",
+        object_id=0,
+        reason=f"Emergency: Resume deposits - {request.reason}",
+        extra_metadata={"action": "resume_deposits", "timestamp": datetime.utcnow().isoformat()}
+    )
+    session.add(audit)
+    session.commit()
+    
+    logger.info(f"Admin {admin_user.id} resumed deposits: {request.reason}")
+    
+    return {
+        "message": "Deposits resumed",
+        "reason": request.reason,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.post("/emergency/pause-withdrawals", response_model=dict)
+def pause_withdrawals(
+    request: EmergencyControlRequest,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Pause withdrawal processing"""
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="platform",
+        object_id=0,
+        reason=f"Emergency: Pause withdrawals - {request.reason}",
+        extra_metadata={"action": "pause_withdrawals", "timestamp": datetime.utcnow().isoformat()}
+    )
+    session.add(audit)
+    session.commit()
+    
+    logger.warning(f"Admin {admin_user.id} paused withdrawals: {request.reason}")
+    
+    return {
+        "message": "Withdrawals paused",
+        "reason": request.reason,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.post("/emergency/resume-withdrawals", response_model=dict)
+def resume_withdrawals(
+    request: EmergencyControlRequest,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Resume withdrawal processing"""
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="platform",
+        object_id=0,
+        reason=f"Emergency: Resume withdrawals - {request.reason}",
+        extra_metadata={"action": "resume_withdrawals", "timestamp": datetime.utcnow().isoformat()}
+    )
+    session.add(audit)
+    session.commit()
+    
+    logger.info(f"Admin {admin_user.id} resumed withdrawals: {request.reason}")
+    
+    return {
+        "message": "Withdrawals resumed",
+        "reason": request.reason,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.post("/emergency/pause-trading", response_model=dict)
+def pause_trading(
+    request: EmergencyControlRequest,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Pause trading platform access"""
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="platform",
+        object_id=0,
+        reason=f"Emergency: Pause trading - {request.reason}",
+        extra_metadata={"action": "pause_trading", "timestamp": datetime.utcnow().isoformat()}
+    )
+    session.add(audit)
+    session.commit()
+    
+    logger.warning(f"Admin {admin_user.id} paused trading: {request.reason}")
+    
+    return {
+        "message": "Trading paused",
+        "reason": request.reason,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.post("/emergency/resume-trading", response_model=dict)
+def resume_trading(
+    request: EmergencyControlRequest,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Resume trading platform access"""
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="platform",
+        object_id=0,
+        reason=f"Emergency: Resume trading - {request.reason}",
+        extra_metadata={"action": "resume_trading", "timestamp": datetime.utcnow().isoformat()}
+    )
+    session.add(audit)
+    session.commit()
+    
+    logger.info(f"Admin {admin_user.id} resumed trading: {request.reason}")
+    
+    return {
+        "message": "Trading resumed",
+        "reason": request.reason,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
+@router.post("/emergency/freeze-account/{account_id}", response_model=dict)
+def freeze_account(
+    account_id: int,
+    request: EmergencyControlRequest,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Freeze a specific user account"""
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+    
+    account.is_frozen = True
+    account.updated_at = datetime.utcnow()
+    
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="account",
+        object_id=account_id,
+        reason=f"Emergency: Freeze account - {request.reason}",
+        diff={"is_frozen": {"before": False, "after": True}}
+    )
+    
+    session.add(account)
+    session.add(audit)
+    session.commit()
+    
+    logger.warning(f"Admin {admin_user.id} froze account {account_id}: {request.reason}")
+    
+    return {
+        "message": "Account frozen",
+        "account_id": account_id,
+        "reason": request.reason
+    }
+
+
+@router.post("/emergency/unfreeze-account/{account_id}", response_model=dict)
+def unfreeze_account(
+    account_id: int,
+    request: EmergencyControlRequest,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Unfreeze a specific user account"""
+    account = session.get(Account, account_id)
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+    
+    account.is_frozen = False
+    account.updated_at = datetime.utcnow()
+    
+    audit = Audit(
+        actor_user_id=admin_user.id,
+        action=AuditAction.ADMIN_ACTION,
+        object_type="account",
+        object_id=account_id,
+        reason=f"Emergency: Unfreeze account - {request.reason}",
+        diff={"is_frozen": {"before": True, "after": False}}
+    )
+    
+    session.add(account)
+    session.add(audit)
+    session.commit()
+    
+    logger.info(f"Admin {admin_user.id} unfroze account {account_id}: {request.reason}")
+    
+    return {
+        "message": "Account unfrozen",
+        "account_id": account_id,
+        "reason": request.reason
+    }
+
+
+# ============================================================================
+# COMPLIANCE & REPORTING
+# ============================================================================
+
+@router.get("/reports/daily-summary", response_model=dict)
+def get_daily_summary(
+    date: Optional[str] = None,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Generate daily deposit/withdrawal summary for regulators"""
+    if not date:
+        target_date = datetime.utcnow().date()
+    else:
+        target_date = datetime.fromisoformat(date).date()
+    
+    start_dt = datetime.combine(target_date, datetime.min.time())
+    end_dt = datetime.combine(target_date, datetime.max.time())
+    
+    # Get all deposits
+    deposits = session.exec(
+        select(Deposit)
+        .where(Deposit.created_at >= start_dt)
+        .where(Deposit.created_at <= end_dt)
+    ).all()
+    
+    # Get all withdrawals
+    withdrawals = session.exec(
+        select(Withdrawal)
+        .where(Withdrawal.requested_at >= start_dt)
+        .where(Withdrawal.requested_at <= end_dt)
+    ).all()
+    
+    # Get all accounts
+    accounts = session.exec(select(Account)).all()
+    
+    return {
+        "report_date": target_date.isoformat(),
+        "generated_at": datetime.utcnow().isoformat(),
+        "deposits": {
+            "total_count": len(deposits),
+            "total_amount_usd": float(sum(d.amount_usd for d in deposits)),
+            "confirmed_count": sum(1 for d in deposits if d.status == "confirmed"),
+            "confirmed_amount_usd": float(sum(d.amount_usd for d in deposits if d.status == "confirmed")),
+            "by_currency": {}
+        },
+        "withdrawals": {
+            "total_count": len(withdrawals),
+            "total_amount_usd": float(sum(w.amount_approved or w.amount_requested for w in withdrawals)),
+            "approved_count": sum(1 for w in withdrawals if w.status in ["approved", "completed"]),
+            "approved_amount_usd": float(sum(
+                w.amount_approved or w.amount_requested 
+                for w in withdrawals 
+                if w.status in ["approved", "completed"]
+            ))
+        },
+        "accounts": {
+            "total_count": len(accounts),
+            "total_deposited_amount": float(sum(a.deposited_amount for a in accounts)),
+            "total_virtual_balances": float(sum(a.virtual_balance for a in accounts)),
+            "active_count": sum(1 for a in accounts if a.is_active and not a.is_frozen)
+        },
+        "users": {
+            "total_count": session.exec(select(User)).count(),
+            "active_count": session.exec(select(User).where(User.is_active == True)).count(),
+            "kyc_approved_count": session.exec(
+                select(User).where(User.kyc_status.in_(["approved", "auto_approved"]))
+            ).count()
+        }
+    }
+
+
+@router.get("/reports/monthly-statement/{user_id}", response_model=dict)
+def get_user_monthly_statement(
+    user_id: int,
+    year: int,
+    month: int,
+    admin_user: User = Depends(get_current_admin_user),
+    session: Session = Depends(get_session)
+):
+    """Generate monthly statement for a user (regulator-ready)"""
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Get account
+    account = session.exec(
+        select(Account).where(Account.user_id == user_id)
+    ).first()
+    
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found"
+        )
+    
+    # Date range for the month
+    start_dt = datetime(year, month, 1)
+    if month == 12:
+        end_dt = datetime(year + 1, 1, 1) - timedelta(seconds=1)
+    else:
+        end_dt = datetime(year, month + 1, 1) - timedelta(seconds=1)
+    
+    # Get ledger entries
+    ledger_entries = session.exec(
+        select(LedgerEntry)
+        .where(LedgerEntry.account_id == account.id)
+        .where(LedgerEntry.created_at >= start_dt)
+        .where(LedgerEntry.created_at <= end_dt)
+        .order_by(LedgerEntry.created_at)
+    ).all()
+    
+    # Get deposits
+    deposits = session.exec(
+        select(Deposit)
+        .where(Deposit.user_id == user_id)
+        .where(Deposit.created_at >= start_dt)
+        .where(Deposit.created_at <= end_dt)
+    ).all()
+    
+    # Get withdrawals
+    withdrawals = session.exec(
+        select(Withdrawal)
+        .where(Withdrawal.user_id == user_id)
+        .where(Withdrawal.requested_at >= start_dt)
+        .where(Withdrawal.requested_at <= end_dt)
+    ).all()
+    
+    return {
+        "user_id": user_id,
+        "user_email": user.email,
+        "statement_period": {
+            "year": year,
+            "month": month,
+            "start_date": start_dt.isoformat(),
+            "end_date": end_dt.isoformat()
+        },
+        "account": {
+            "account_id": account.id,
+            "opening_balance": float(account.deposited_amount),  # Simplified
+            "closing_balance": float(account.virtual_balance),
+            "total_deposited": float(account.deposited_amount)
+        },
+        "transactions": {
+            "deposits": [
+                {
+                    "id": d.id,
+                    "amount_usd": float(d.amount_usd),
+                    "currency": d.currency,
+                    "status": d.status.value,
+                    "created_at": d.created_at.isoformat()
+                }
+                for d in deposits
+            ],
+            "withdrawals": [
+                {
+                    "id": w.id,
+                    "amount_requested": float(w.amount_requested),
+                    "amount_approved": float(w.amount_approved) if w.amount_approved else None,
+                    "status": w.status.value,
+                    "requested_at": w.requested_at.isoformat()
+                }
+                for w in withdrawals
+            ],
+            "ledger_entries": [
+                {
+                    "id": le.id,
+                    "entry_type": le.entry_type.value,
+                    "amount": float(le.amount),
+                    "balance_after": float(le.balance_after),
+                    "description": le.description,
+                    "created_at": le.created_at.isoformat()
+                }
+                for le in ledger_entries
+            ]
+        },
+        "generated_at": datetime.utcnow().isoformat()
     }

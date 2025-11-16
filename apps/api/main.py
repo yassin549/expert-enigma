@@ -16,6 +16,7 @@ from typing import AsyncIterator
 from core.config import settings
 from core.database import init_db
 from core.redis import init_redis, close_redis
+from core.security_middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -23,6 +24,28 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Sentry integration (optional)
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    
+    if settings.SENTRY_DSN:
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            integrations=[
+                FastApiIntegration(),
+                SqlalchemyIntegration(),
+            ],
+            traces_sample_rate=0.1 if settings.ENVIRONMENT == "production" else 1.0,
+            environment=settings.ENVIRONMENT,
+        )
+        logger.info("✅ Sentry error tracking initialized")
+except ImportError:
+    logger.info("Sentry not installed, skipping error tracking")
+except Exception as e:
+    logger.warning(f"Failed to initialize Sentry: {e}")
 
 
 @asynccontextmanager
@@ -64,6 +87,14 @@ app.add_middleware(
 
 # GZip Compression
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Security Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
+    requests_per_hour=settings.RATE_LIMIT_PER_HOUR
+)
 
 
 # Request timing middleware
