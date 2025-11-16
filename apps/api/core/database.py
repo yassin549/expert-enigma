@@ -9,6 +9,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 from typing import AsyncGenerator
 import logging
+from alembic import command
+from alembic.config import Config
+import os
 
 from core.config import settings
 
@@ -49,7 +52,7 @@ async_session_maker = sessionmaker(
 
 
 async def init_db() -> None:
-    """Initialize database - create tables if they don't exist"""
+    """Initialize database - run migrations and create tables if they don't exist"""
     try:
         # Import all models to ensure they're registered with SQLModel metadata
         from models import (
@@ -57,6 +60,42 @@ async def init_db() -> None:
             Order, Position, Instrument, Candle, AIInvestmentPlan, UserInvestment,
             LedgerEntry, AMLAlert, Audit, SupportTicket
         )
+        
+        # Run Alembic migrations first
+        try:
+            # Get the path to alembic.ini (should be in the same directory as this file's parent)
+            alembic_ini_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "alembic.ini")
+            if not os.path.exists(alembic_ini_path):
+                logger.warning(f"⚠️  alembic.ini not found at {alembic_ini_path}, skipping migrations")
+            else:
+                alembic_cfg = Config(alembic_ini_path)
+                alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+                
+                logger.info("🔄 Running database migrations...")
+                command.upgrade(alembic_cfg, "head")
+                logger.info("✅ Database migrations completed")
+        except Exception as migration_error:
+            # Log migration errors but don't fail completely - tables might already be up to date
+            # or this might be a fresh database that needs table creation
+            # Alembic will handle concurrent migration attempts via its version table locking
+            error_str = str(migration_error)
+            error_lower = error_str.lower()
+            
+            # Common expected errors that we can safely ignore
+            expected_errors = [
+                "target database is not up to date",
+                "can't locate revision identified by",
+                "no such revision",
+                "already at head",
+            ]
+            
+            if any(expected in error_lower for expected in expected_errors):
+                logger.info("ℹ️  Migrations already applied or not needed")
+            else:
+                # For other errors, log as warning but continue - might be a race condition
+                # or the database might need manual intervention
+                logger.warning(f"⚠️  Migration warning: {error_str}")
+                logger.info("ℹ️  Continuing with table creation (migrations may have been applied by another worker)")
         
         async with async_engine.begin() as conn:
             # Create all tables if they don't exist
