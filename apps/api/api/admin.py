@@ -26,7 +26,7 @@ router = APIRouter()
 
 
 # Pydantic models for request/response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AdminAccountResponse(BaseModel):
