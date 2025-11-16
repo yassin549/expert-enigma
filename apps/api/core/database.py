@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text as sa_text
 from typing import AsyncGenerator
 import logging
 from alembic import command
@@ -61,23 +62,58 @@ async def init_db() -> None:
             LedgerEntry, AMLAlert, Audit, SupportTicket
         )
         
-        # Run Alembic migrations first
+        # Run Alembic migrations first (with advisory lock to prevent concurrent runs)
         try:
             # Get the path to alembic.ini (should be in the same directory as this file's parent)
             alembic_ini_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "alembic.ini")
             if not os.path.exists(alembic_ini_path):
                 logger.warning(f"⚠️  alembic.ini not found at {alembic_ini_path}, skipping migrations")
             else:
-                alembic_cfg = Config(alembic_ini_path)
-                alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
-                
-                logger.info("🔄 Running database migrations...")
-                command.upgrade(alembic_cfg, "head")
-                logger.info("✅ Database migrations completed")
+                # Use PostgreSQL advisory lock to ensure only one worker runs migrations
+                # Lock ID: 123456789 (arbitrary but consistent)
+                async with async_engine.begin() as conn:
+                    # Try to acquire advisory lock (non-blocking)
+                    lock_result = await conn.execute(
+                        sa_text("SELECT pg_try_advisory_lock(123456789)")
+                    )
+                    has_lock = lock_result.scalar()
+                    
+                    if has_lock:
+                        try:
+                            logger.info("🔄 Acquired migration lock, running database migrations...")
+                            # Release the async connection and use sync engine for migrations
+                            await conn.commit()
+                            
+                            # Run migrations using sync engine (Alembic needs sync)
+                            alembic_cfg = Config(alembic_ini_path)
+                            alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+                            command.upgrade(alembic_cfg, "head")
+                            logger.info("✅ Database migrations completed")
+                        finally:
+                            # Release the advisory lock
+                            with sync_engine.connect() as sync_conn:
+                                sync_conn.execute(sa_text("SELECT pg_advisory_unlock(123456789)"))
+                                sync_conn.commit()
+                    else:
+                        logger.info("⏳ Another worker is running migrations, waiting...")
+                        # Wait a bit and check if migrations are done
+                        import asyncio
+                        await asyncio.sleep(2)
+                        # Check current revision
+                        from alembic.script import ScriptDirectory
+                        from alembic.runtime.migration import MigrationContext
+                        with sync_engine.connect() as sync_conn:
+                            context = MigrationContext.configure(sync_conn)
+                            current_rev = context.get_current_revision()
+                            script = ScriptDirectory.from_config(Config(alembic_ini_path))
+                            head_rev = script.get_current_head()
+                            if current_rev == head_rev:
+                                logger.info("✅ Migrations completed by another worker")
+                            else:
+                                logger.warning("⚠️  Migrations may still be running, continuing anyway")
         except Exception as migration_error:
             # Log migration errors but don't fail completely - tables might already be up to date
             # or this might be a fresh database that needs table creation
-            # Alembic will handle concurrent migration attempts via its version table locking
             error_str = str(migration_error)
             error_lower = error_str.lower()
             

@@ -18,24 +18,126 @@ depends_on = None
 
 
 def upgrade():
-    # Create ENUM types
-    op.execute("CREATE TYPE kyc_status_enum AS ENUM ('pending', 'auto_approved', 'approved', 'rejected')")
-    op.execute("CREATE TYPE deposit_status_enum AS ENUM ('pending', 'confirming', 'confirmed', 'failed', 'refunded')")
-    op.execute("CREATE TYPE withdrawal_status_enum AS ENUM ('pending', 'approved', 'processing', 'completed', 'rejected', 'failed')")
-    op.execute("CREATE TYPE wallet_type_enum AS ENUM ('business_operational', 'business_deposit', 'user_custody')")
-    op.execute("CREATE TYPE adjustment_type_enum AS ENUM ('credit', 'debit', 'set_balance', 'fee', 'bonus', 'refund')")
-    op.execute("CREATE TYPE order_side_enum AS ENUM ('buy', 'sell')")
-    op.execute("CREATE TYPE order_type_enum AS ENUM ('market', 'limit', 'stop', 'stop_limit', 'take_profit', 'trailing_stop', 'oco')")
-    op.execute("CREATE TYPE order_status_enum AS ENUM ('pending', 'filled', 'partially_filled', 'cancelled', 'rejected', 'expired')")
-    op.execute("CREATE TYPE position_status_enum AS ENUM ('open', 'closed')")
-    op.execute("CREATE TYPE position_side_enum AS ENUM ('buy', 'sell')")
-    op.execute("CREATE TYPE instrument_type_enum AS ENUM ('forex', 'crypto', 'stock', 'index', 'commodity')")
-    op.execute("CREATE TYPE timeframe_enum AS ENUM ('1m', '5m', '15m', '1h', '4h', '1d', '1w')")
-    op.execute("CREATE TYPE entry_type_enum AS ENUM ('deposit', 'withdrawal', 'admin_adjustment', 'trade_pnl', 'fee', 'bonus', 'refund', 'investment_return', 'investment_withdrawal')")
-    op.execute("CREATE TYPE aml_severity_enum AS ENUM ('low', 'medium', 'high', 'critical')")
-    op.execute("CREATE TYPE audit_action_enum AS ENUM ('user_created', 'user_updated', 'user_banned', 'user_unbanned', 'account_created', 'account_frozen', 'account_unfrozen', 'deposit_created', 'deposit_confirmed', 'withdrawal_requested', 'withdrawal_approved', 'withdrawal_rejected', 'withdrawal_completed', 'order_placed', 'order_filled', 'order_cancelled', 'position_opened', 'position_closed', 'admin_adjustment', 'kyc_submitted', 'kyc_approved', 'kyc_rejected', 'aml_alert_created', 'aml_alert_resolved', 'investment_allocated', 'investment_withdrawn')")
-    op.execute("CREATE TYPE ticket_status_enum AS ENUM ('open', 'in_progress', 'resolved', 'closed')")
-    op.execute("CREATE TYPE ticket_priority_enum AS ENUM ('low', 'medium', 'high', 'urgent')")
+    # Create ENUM types (only if they don't exist to handle concurrent migration attempts)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE kyc_status_enum AS ENUM ('pending', 'auto_approved', 'approved', 'rejected');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE deposit_status_enum AS ENUM ('pending', 'confirming', 'confirmed', 'failed', 'refunded');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE withdrawal_status_enum AS ENUM ('pending', 'approved', 'processing', 'completed', 'rejected', 'failed');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE wallet_type_enum AS ENUM ('business_operational', 'business_deposit', 'user_custody');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE adjustment_type_enum AS ENUM ('credit', 'debit', 'set_balance', 'fee', 'bonus', 'refund');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE order_side_enum AS ENUM ('buy', 'sell');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE order_type_enum AS ENUM ('market', 'limit', 'stop', 'stop_limit', 'take_profit', 'trailing_stop', 'oco');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE order_status_enum AS ENUM ('pending', 'filled', 'partially_filled', 'cancelled', 'rejected', 'expired');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE position_status_enum AS ENUM ('open', 'closed');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE position_side_enum AS ENUM ('buy', 'sell');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE instrument_type_enum AS ENUM ('forex', 'crypto', 'stock', 'index', 'commodity');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE timeframe_enum AS ENUM ('1m', '5m', '15m', '1h', '4h', '1d', '1w');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE entry_type_enum AS ENUM ('deposit', 'withdrawal', 'admin_adjustment', 'trade_pnl', 'fee', 'bonus', 'refund', 'investment_return', 'investment_withdrawal');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE aml_severity_enum AS ENUM ('low', 'medium', 'high', 'critical');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE audit_action_enum AS ENUM ('user_created', 'user_updated', 'user_banned', 'user_unbanned', 'account_created', 'account_frozen', 'account_unfrozen', 'deposit_created', 'deposit_confirmed', 'withdrawal_requested', 'withdrawal_approved', 'withdrawal_rejected', 'withdrawal_completed', 'order_placed', 'order_filled', 'order_cancelled', 'position_opened', 'position_closed', 'admin_adjustment', 'kyc_submitted', 'kyc_approved', 'kyc_rejected', 'aml_alert_created', 'aml_alert_resolved', 'investment_allocated', 'investment_withdrawn');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE ticket_status_enum AS ENUM ('open', 'in_progress', 'resolved', 'closed');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE ticket_priority_enum AS ENUM ('low', 'medium', 'high', 'urgent');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
     # Create users table
     op.create_table('users',
