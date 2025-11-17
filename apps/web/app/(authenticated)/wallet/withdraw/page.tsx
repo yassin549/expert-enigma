@@ -1,59 +1,67 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Shield, 
   Clock,
   CheckCircle,
   AlertTriangle,
-  Copy,
-  ExternalLink,
-  Wallet
+  Wallet,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { toast } from 'sonner'
+import { apiClient } from '@/lib/api-client'
 
-interface WithdrawalRequest {
-  id: string
-  amount: number
-  currency: string
-  address: string
-  status: 'pending' | 'approved' | 'processing' | 'completed' | 'rejected'
-  requestedAt: string
-  processedAt?: string
-  txHash?: string
+interface RawAccountResponse {
+  id: number
+  name: string
 }
+
+interface RawBalanceResponse {
+  virtual_balance: number | string
+  deposited_amount: number | string
+}
+
+interface WithdrawalHistoryRecord {
+  id: number
+  amount_requested: number
+  currency: string
+  status: string
+  payout_address: string
+  requested_at: string
+  processed_at?: string
+}
+
+const WITHDRAWAL_MIN_USD = 10
+const WITHDRAWAL_MAX_USD = 100000
+
+const toNumber = (value: number | string) => {
+  if (typeof value === 'number') return value
+  const parsed = parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0)
+
+const formatDateTime = (value: string) => new Date(value).toLocaleString()
 
 export default function WithdrawPage() {
   const [withdrawalAmount, setWithdrawalAmount] = useState('')
   const [cryptoAddress, setCryptoAddress] = useState('')
   const [selectedCrypto, setSelectedCrypto] = useState('BTC')
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const [userBalance] = useState(10000)
-  const [depositedAmount] = useState(500)
-
-  const [withdrawalHistory] = useState<WithdrawalRequest[]>([
-    {
-      id: 'WD001',
-      amount: 1500,
-      currency: 'BTC',
-      address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-      status: 'completed',
-      requestedAt: '2024-01-15 10:30:00',
-      processedAt: '2024-01-15 14:45:00',
-      txHash: '1a2b3c4d5e6f7g8h9i0j'
-    },
-    {
-      id: 'WD002',
-      amount: 750,
-      currency: 'ETH',
-      address: '0x742d35Cc6634C0532925a3b8D4C5c5c8c5c5c8c5',
-      status: 'pending',
-      requestedAt: '2024-01-20 09:15:00'
-    }
-  ])
+  const [accountId, setAccountId] = useState<number | null>(null)
+  const [balance, setBalance] = useState<{ virtual_balance: number; deposited_amount: number } | null>(null)
+  const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistoryRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const cryptoOptions = [
     { symbol: 'BTC', name: 'Bitcoin', minWithdraw: 0.001, fee: 0.0005 },
@@ -62,26 +70,132 @@ export default function WithdrawPage() {
     { symbol: 'USDC', name: 'USD Coin', minWithdraw: 10, fee: 5 }
   ]
 
+  const fetchBalance = async (id: number) => {
+    try {
+      const response = await apiClient.get<RawBalanceResponse>(`/api/accounts/${id}/balance`)
+      setBalance({
+        virtual_balance: toNumber(response.virtual_balance),
+        deposited_amount: toNumber(response.deposited_amount),
+      })
+    } catch (err) {
+      console.error('Failed to load balance:', err)
+      setError('Unable to load balance information.')
+    }
+  }
+
+  const fetchWithdrawalHistory = async () => {
+    try {
+      setHistoryLoading(true)
+      const history = await apiClient.get<WithdrawalHistoryRecord[]>('/api/payouts/withdrawals')
+      setWithdrawalHistory(history)
+    } catch (err) {
+      console.error('Failed to load withdrawal history:', err)
+      toast.error('Unable to load withdrawal history.')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  const initialize = async () => {
+    try {
+      setLoading(true)
+      const accounts = await apiClient.get<RawAccountResponse[]>('/api/accounts')
+      if (!accounts.length) {
+        setError('No trading account found. Make a deposit to unlock withdrawals.')
+        setLoading(false)
+        return
+      }
+      const firstAccountId = accounts[0].id
+      setAccountId(firstAccountId)
+      await fetchBalance(firstAccountId)
+      await fetchWithdrawalHistory()
+    } catch (err) {
+      console.error('Failed to initialize withdrawal page:', err)
+      setError('Unable to load account data. Please try again later.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    initialize()
+  }, [])
+
+  const handleRefresh = () => {
+    initialize()
+  }
+
   const selectedCryptoData = cryptoOptions.find(crypto => crypto.symbol === selectedCrypto)
   const withdrawalAmountNum = parseFloat(withdrawalAmount) || 0
   const estimatedCrypto = withdrawalAmountNum / (selectedCrypto === 'BTC' ? 45000 : selectedCrypto === 'ETH' ? 2500 : 1)
   const networkFee = selectedCryptoData?.fee || 0
   const finalAmount = estimatedCrypto - networkFee
+  const availableBalance = balance?.virtual_balance ?? 0
+  const realDeposited = balance?.deposited_amount ?? 0
+  const maxAllowed = Math.min(WITHDRAWAL_MAX_USD, availableBalance || WITHDRAWAL_MAX_USD)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4" />
+          <p className="text-white/60">Loading withdrawal dashboard...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleSubmitWithdrawal = () => {
-    if (!withdrawalAmount || !cryptoAddress) return
+    if (!withdrawalAmount || !cryptoAddress) {
+      toast.error('Enter a withdrawal amount and destination address.')
+      return
+    }
+
+    if (!balance) {
+      toast.error('Balance unavailable. Please refresh and try again.')
+      return
+    }
+
+    const maxAllowed = Math.min(WITHDRAWAL_MAX_USD, balance.virtual_balance)
+    if (withdrawalAmountNum < WITHDRAWAL_MIN_USD || withdrawalAmountNum > maxAllowed) {
+      toast.error(
+        `Withdrawal amount must be between $${WITHDRAWAL_MIN_USD.toLocaleString()} and $${maxAllowed.toLocaleString()}.`,
+      )
+      return
+    }
+
     setShowConfirmation(true)
   }
 
-  const confirmWithdrawal = () => {
-    console.log(`Withdrawal request: $${withdrawalAmount} to ${cryptoAddress}`)
-    setShowConfirmation(false)
-    setWithdrawalAmount('')
-    setCryptoAddress('')
+  const confirmWithdrawal = async () => {
+    if (!withdrawalAmount || !cryptoAddress) return
+    try {
+      setSubmitting(true)
+      await apiClient.post('/api/payouts/request', {
+        amount_usd: Number(withdrawalAmount),
+        currency: selectedCrypto,
+        payout_address: cryptoAddress,
+      })
+      toast.success('Withdrawal request submitted for review.')
+      setShowConfirmation(false)
+      setWithdrawalAmount('')
+      setCryptoAddress('')
+      await Promise.all([
+        fetchWithdrawalHistory(),
+        accountId ? fetchBalance(accountId) : Promise.resolve(),
+      ])
+    } catch (err) {
+      console.error('Failed to submit withdrawal:', err)
+      toast.error(
+        err instanceof Error ? err.message : 'Unable to submit withdrawal request. Please try again.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'completed': return 'text-green-400'
       case 'approved': return 'text-blue-400'
       case 'processing': return 'text-yellow-400'
@@ -92,7 +206,7 @@ export default function WithdrawPage() {
   }
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'completed': return CheckCircle
       case 'approved': return CheckCircle
       case 'processing': return Clock
@@ -114,6 +228,18 @@ export default function WithdrawPage() {
       />
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {error && (
+          <Card className="mb-6 bg-red-500/10 border border-red-500/30 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-red-200">{error}</p>
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              className="border-red-500/50 text-red-100 hover:bg-red-500/20"
+            >
+              Retry
+            </Button>
+          </Card>
+        )}
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <motion.div
@@ -128,11 +254,11 @@ export default function WithdrawPage() {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-white/60 text-sm">Available Balance</p>
-                      <p className="text-2xl font-bold text-white">${userBalance.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-white">{formatCurrency(availableBalance)}</p>
                     </div>
                     <div>
                       <p className="text-white/60 text-sm">Original Deposit</p>
-                      <p className="text-lg font-semibold text-white/80">${depositedAmount.toLocaleString()}</p>
+                      <p className="text-lg font-semibold text-white/80">{formatCurrency(realDeposited)}</p>
                     </div>
                   </div>
                 </div>
@@ -150,12 +276,12 @@ export default function WithdrawPage() {
                       placeholder="0.00"
                       className="w-full pl-8 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-brand-blue-400"
                       min="10"
-                      max={userBalance}
+                      max={availableBalance || undefined}
                       step="0.01"
                     />
                   </div>
                   <p className="text-white/60 text-sm mt-1">
-                    Minimum: $10 • Maximum: ${userBalance.toLocaleString()}
+                    Minimum: {formatCurrency(WITHDRAWAL_MIN_USD)} • Maximum: {formatCurrency(maxAllowed)}
                   </p>
                 </div>
 
@@ -226,10 +352,23 @@ export default function WithdrawPage() {
 
                 <Button
                   onClick={handleSubmitWithdrawal}
-                  disabled={!withdrawalAmount || !cryptoAddress || withdrawalAmountNum < 10 || withdrawalAmountNum > userBalance}
-                  className="w-full bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90 py-3"
+                  disabled={
+                    submitting ||
+                    !withdrawalAmount ||
+                    !cryptoAddress ||
+                    withdrawalAmountNum < WITHDRAWAL_MIN_USD ||
+                    withdrawalAmountNum > maxAllowed
+                  }
+                  className="w-full bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90 py-3 disabled:opacity-60"
                 >
-                  Request Withdrawal
+                  {submitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Submitting...
+                    </span>
+                  ) : (
+                    'Request Withdrawal'
+                  )}
                 </Button>
 
                 <div className="mt-6 space-y-3">
@@ -270,6 +409,12 @@ export default function WithdrawPage() {
               <Card className="p-6 bg-white/5 backdrop-blur-xl border-white/10">
                 <h3 className="text-xl font-bold text-white mb-4">Withdrawal History</h3>
                 
+                {historyLoading && (
+                  <div className="text-center text-white/60 py-4">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                    Updating history...
+                  </div>
+                )}
                 <div className="space-y-4">
                   {withdrawalHistory.map((withdrawal) => {
                     const StatusIcon = getStatusIcon(withdrawal.status)
@@ -278,17 +423,17 @@ export default function WithdrawPage() {
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <StatusIcon className={`w-4 h-4 ${getStatusColor(withdrawal.status)}`} />
-                            <span className="text-white font-medium">{withdrawal.id}</span>
+                            <span className="text-white font-medium">#{withdrawal.id}</span>
                           </div>
                           <span className={`text-sm capitalize ${getStatusColor(withdrawal.status)}`}>
-                            {withdrawal.status}
+                            {withdrawal.status.replace(/_/g, ' ')}
                           </span>
                         </div>
                         
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
                             <span className="text-white/60">Amount</span>
-                            <span className="text-white">${withdrawal.amount.toLocaleString()}</span>
+                            <span className="text-white">{formatCurrency(withdrawal.amount_requested)}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-white/60">Currency</span>
@@ -296,37 +441,27 @@ export default function WithdrawPage() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-white/60">Requested</span>
-                            <span className="text-white/60">{withdrawal.requestedAt}</span>
+                            <span className="text-white/60">{formatDateTime(withdrawal.requested_at)}</span>
                           </div>
-                          {withdrawal.processedAt && (
+                          {withdrawal.processed_at && (
                             <div className="flex justify-between">
                               <span className="text-white/60">Processed</span>
-                              <span className="text-white/60">{withdrawal.processedAt}</span>
+                              <span className="text-white/60">{formatDateTime(withdrawal.processed_at)}</span>
                             </div>
                           )}
-                        </div>
-
-                        {withdrawal.txHash && (
-                          <div className="mt-3 pt-3 border-t border-white/10">
-                            <div className="flex items-center gap-2">
-                              <span className="text-white/60 text-sm">TX Hash:</span>
-                              <span className="text-white font-mono text-xs">{withdrawal.txHash}</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-white/60 hover:text-white p-1"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                              </Button>
-                            </div>
+                          <div className="flex justify-between">
+                            <span className="text-white/60">Payout address</span>
+                            <span className="text-white/70 text-xs max-w-[220px] break-all">
+                              {withdrawal.payout_address}
+                            </span>
                           </div>
-                        )}
+                        </div>
                       </div>
                     )
                   })}
                 </div>
 
-                {withdrawalHistory.length === 0 && (
+                {!historyLoading && withdrawalHistory.length === 0 && (
                   <div className="text-center py-8">
                     <Wallet className="w-12 h-12 text-white/30 mx-auto mb-3" />
                     <p className="text-white/60">No withdrawal history</p>
@@ -393,9 +528,17 @@ export default function WithdrawPage() {
                 </Button>
                 <Button
                   onClick={confirmWithdrawal}
-                  className="flex-1 bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90"
+                  disabled={submitting}
+                  className="flex-1 bg-gradient-to-r from-brand-blue-500 to-brand-purple-500 text-white hover:opacity-90 disabled:opacity-60"
                 >
-                  Confirm Request
+                  {submitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Sending...
+                    </span>
+                  ) : (
+                    'Confirm Request'
+                  )}
                 </Button>
               </div>
             </Card>

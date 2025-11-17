@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Copy, 
@@ -9,41 +9,102 @@ import {
   Shield,
   QrCode,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { toast } from 'sonner'
+import { apiClient } from '@/lib/api-client'
 
-interface CryptoCurrency {
+type DepositStep = 'amount' | 'crypto' | 'payment' | 'confirmation'
+
+interface CurrencyOption {
   symbol: string
   name: string
-  network: string
-  minDeposit: number
-  processingTime: string
+  network?: string
+  minDeposit?: number
+  processingTime?: string
   icon: string
 }
 
-const SUPPORTED_CRYPTOS: CryptoCurrency[] = [
-  { symbol: 'BTC', name: 'Bitcoin', network: 'Bitcoin', minDeposit: 0.001, processingTime: '10-60 min', icon: '₿' },
-  { symbol: 'ETH', name: 'Ethereum', network: 'Ethereum', minDeposit: 0.01, processingTime: '5-15 min', icon: 'Ξ' },
-  { symbol: 'USDT', name: 'Tether', network: 'ERC20', minDeposit: 10, processingTime: '5-15 min', icon: '₮' },
-  { symbol: 'USDT', name: 'Tether', network: 'TRC20', minDeposit: 10, processingTime: '3-10 min', icon: '₮' },
-  { symbol: 'USDC', name: 'USD Coin', network: 'ERC20', minDeposit: 10, processingTime: '5-15 min', icon: '$' },
-  { symbol: 'LTC', name: 'Litecoin', network: 'Litecoin', minDeposit: 0.1, processingTime: '5-30 min', icon: 'Ł' },
-]
+interface CurrencyResponse {
+  currencies: string[]
+}
 
-type DepositStep = 'amount' | 'crypto' | 'payment' | 'confirmation'
+interface DepositInstructionResponse {
+  deposit_id: number
+  payment_id: string
+  order_id: string
+  status: string
+  pay_currency: string
+  pay_amount: number
+  pay_address?: string | null
+  price_amount: number
+  price_currency: string
+  nowpayments_payload: Record<string, unknown>
+}
+
+interface RawDepositHistory {
+  id: number
+  status: string
+  currency: string
+  amount: number | string
+  amount_usd: number | string
+  created_at: string
+  nowpayments_payment_id?: string | null
+}
+
+interface DepositHistoryRecord {
+  id: number
+  status: string
+  currency: string
+  amount: number
+  amount_usd: number
+  created_at: string
+  nowpayments_payment_id?: string | null
+}
+
+const CURRENCY_METADATA: Record<string, CurrencyOption> = {
+  BTC: { symbol: 'BTC', name: 'Bitcoin', network: 'Bitcoin', minDeposit: 0.0005, processingTime: '10-60 min', icon: '₿' },
+  ETH: { symbol: 'ETH', name: 'Ethereum', network: 'Ethereum', minDeposit: 0.01, processingTime: '5-15 min', icon: 'Ξ' },
+  USDT: { symbol: 'USDT', name: 'Tether', network: 'ERC20 / TRC20', minDeposit: 10, processingTime: '3-10 min', icon: '₮' },
+  USDC: { symbol: 'USDC', name: 'USD Coin', network: 'ERC20', minDeposit: 10, processingTime: '5-15 min', icon: '$' },
+  LTC: { symbol: 'LTC', name: 'Litecoin', network: 'Litecoin', minDeposit: 0.1, processingTime: '5-30 min', icon: 'Ł' },
+}
+
+const FALLBACK_CURRENCIES = Object.keys(CURRENCY_METADATA).map(
+  (symbol) => CURRENCY_METADATA[symbol],
+)
+
+const statusDescriptions: Record<string, string> = {
+  pending: 'Payment detected, waiting for confirmations',
+  confirming: 'Blocks are confirming on-chain',
+  confirmed: 'Deposit confirmed and credited',
+  failed: 'Payment failed or expired',
+  refunded: 'Payment refunded by provider',
+}
+
+const toNumber = (value: number | string): number => {
+  if (typeof value === 'number') return value
+  const parsed = parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
 
 export default function DepositPage() {
   const [currentStep, setCurrentStep] = useState<DepositStep>('amount')
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null)
   const [customAmount, setCustomAmount] = useState('')
-  const [selectedCrypto, setSelectedCrypto] = useState<CryptoCurrency | null>(null)
-  const [depositAddress, setDepositAddress] = useState('')
-  const [paymentId, setPaymentId] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>(FALLBACK_CURRENCIES)
+  const [currenciesLoading, setCurrenciesLoading] = useState(true)
+  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyOption | null>(null)
+  const [activeDeposit, setActiveDeposit] = useState<DepositInstructionResponse | null>(null)
+  const [activeDepositStatus, setActiveDepositStatus] = useState<string | null>(null)
+  const [depositHistory, setDepositHistory] = useState<DepositHistoryRecord[]>([])
+  const [creatingDeposit, setCreatingDeposit] = useState(false)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const suggestedAmounts = [100, 250, 500, 1000, 2500, 5000]
 
@@ -61,21 +122,103 @@ export default function DepositPage() {
     return selectedAmount || parseFloat(customAmount) || 0
   }
 
-  const handleCryptoSelect = (crypto: CryptoCurrency) => {
-    setSelectedCrypto(crypto)
-    const mockAddress = crypto.symbol === 'BTC' ? 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh' :
-                       crypto.symbol === 'ETH' ? '0x742d35Cc6634C0532925a3b8D4C5c5c8c5c5c8c5' :
-                       '0x742d35Cc6634C0532925a3b8D4C5c5c8c5c5c8c5'
-    setDepositAddress(mockAddress)
-    setPaymentId(`NP_${Date.now()}`)
-    setCurrentStep('payment')
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    toast.success('Copied to clipboard')
+    setTimeout(() => setCopiedField(null), 2000)
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const fetchSupportedCurrencies = async () => {
+    try {
+      setCurrenciesLoading(true)
+      const response = await apiClient.get<CurrencyResponse>('/api/payments/currencies')
+      const normalized = response.currencies
+        .map((symbol) => symbol.toUpperCase())
+        .map((symbol) => CURRENCY_METADATA[symbol] || { symbol, name: symbol, icon: symbol.charAt(0) })
+      setCurrencies(normalized)
+    } catch (error) {
+      console.error('Failed to load currencies:', error)
+      toast.error('Unable to fetch supported currencies. Using defaults.')
+      setCurrencies(FALLBACK_CURRENCIES)
+    } finally {
+      setCurrenciesLoading(false)
+    }
   }
+
+  const fetchDepositHistory = async () => {
+    try {
+      const history = await apiClient.get<RawDepositHistory[]>('/api/payments/deposits')
+      const normalized = history.map((record) => ({
+        id: record.id,
+        status: record.status,
+        currency: record.currency,
+        amount: toNumber(record.amount),
+        amount_usd: toNumber(record.amount_usd),
+        created_at: record.created_at,
+        nowpayments_payment_id: record.nowpayments_payment_id,
+      }))
+      setDepositHistory(normalized)
+      return normalized
+    } catch (error) {
+      console.error('Failed to load deposit history:', error)
+      return []
+    }
+  }
+
+  const handleCryptoSelect = async (currency: CurrencyOption) => {
+    if (getCurrentAmount() < 10) {
+      toast.error('Minimum deposit is $10')
+      return
+    }
+
+    try {
+      setCreatingDeposit(true)
+      setSelectedCurrency(currency)
+      const deposit = await apiClient.post<DepositInstructionResponse>('/api/payments/deposits', {
+        amount_usd: Number(getCurrentAmount().toFixed(2)),
+        pay_currency: currency.symbol.toLowerCase(),
+      })
+
+      setActiveDeposit(deposit)
+      setActiveDepositStatus(deposit.status)
+      setCurrentStep('payment')
+      await fetchDepositHistory()
+      toast.success('Deposit instructions generated')
+    } catch (error) {
+      console.error('Failed to create deposit:', error)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Unable to create deposit. Please try again.',
+      )
+    } finally {
+      setCreatingDeposit(false)
+    }
+  }
+
+  const refreshActiveDepositStatus = async (depositId: number) => {
+    const history = await fetchDepositHistory()
+    const target = history.find((record) => record.id === depositId)
+    if (target) {
+      setActiveDepositStatus(target.status)
+    }
+  }
+
+  useEffect(() => {
+    fetchSupportedCurrencies()
+    fetchDepositHistory()
+  }, [])
+
+  useEffect(() => {
+    if (!activeDeposit) return
+    const poller = setInterval(() => {
+      refreshActiveDepositStatus(activeDeposit.deposit_id)
+    }, 10000)
+    return () => clearInterval(poller)
+  }, [activeDeposit])
+
+  const latestDeposits = useMemo(() => depositHistory.slice(0, 5), [depositHistory])
 
   const renderStepIndicator = () => {
     const steps = [
@@ -210,22 +353,32 @@ export default function DepositPage() {
             transition={{ duration: 0.6 }}
           >
             <Card className="p-8 bg-white/10 backdrop-blur-2xl border-white/10 shadow-[0_25px_60px_rgba(15,23,42,0.55)]">
-              <h2 className="text-2xl font-bold text-white mb-2">Select Cryptocurrency</h2>
-              <p className="text-white/70 mb-8">
-                Choose your preferred cryptocurrency for depositing ${getCurrentAmount().toFixed(2)}
-              </p>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Select Cryptocurrency</h2>
+                  <p className="text-white/70">
+                    Choose your preferred asset to fund ${getCurrentAmount().toFixed(2)}.
+                  </p>
+                </div>
+                <p className="text-sm text-white/50">
+                  {currenciesLoading ? 'Loading currencies...' : `${currencies.length} assets available`}
+                </p>
+              </div>
 
               <div className="grid gap-4">
-                {SUPPORTED_CRYPTOS.map((crypto, index) => (
+                {currencies.map((crypto, index) => (
                   <motion.div
-                    key={`${crypto.symbol}-${crypto.network}`}
+                    key={`${crypto.symbol}-${index}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className="p-4 bg-white/10 border-white/10 hover:bg-white/15 cursor-pointer transition-all duration-200"
-                      onClick={() => handleCryptoSelect(crypto)}
+                      aria-disabled={creatingDeposit}
+                      className={`p-4 bg-white/10 border-white/10 transition-all duration-200 ${
+                        creatingDeposit ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/15 cursor-pointer'
+                      }`}
+                      onClick={() => !creatingDeposit && handleCryptoSelect(crypto)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -234,12 +387,13 @@ export default function DepositPage() {
                           </div>
                           <div>
                             <h3 className="text-white font-semibold">{crypto.name}</h3>
-                            <p className="text-white/60 text-sm">{crypto.network} Network</p>
+                            <p className="text-white/60 text-sm">
+                              {crypto.network || 'On-chain'} Network · Min {crypto.minDeposit ?? '0'} {crypto.symbol}
+                            </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-white/60 text-sm">Min: {crypto.minDeposit} {crypto.symbol}</p>
-                          <p className="text-white/60 text-sm">{crypto.processingTime}</p>
+                        <div className="text-right text-white/60 text-sm">
+                          <p>Processing {crypto.processingTime ?? '5-30 min'}</p>
                         </div>
                       </div>
                     </Card>
@@ -247,19 +401,27 @@ export default function DepositPage() {
                 ))}
               </div>
 
-              <Button
-                onClick={() => setCurrentStep('amount')}
-                variant="outline"
-                className="w-full mt-6 border-white/20 text-white hover:bg-white/10"
-              >
-                Back to Amount
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4 mt-8">
+                <Button
+                  onClick={() => setCurrentStep('amount')}
+                  variant="outline"
+                  className="flex-1 border-white/20 text-white hover:bg-white/10"
+                >
+                  Back to Amount
+                </Button>
+                {creatingDeposit && (
+                  <Button disabled className="flex-1 bg-gradient-to-r from-brand-blue-500 to-brand-purple-500">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating instructions...
+                  </Button>
+                )}
+              </div>
             </Card>
           </motion.div>
         )}
 
         {/* Step 3: Payment */}
-        {currentStep === 'payment' && selectedCrypto && (
+        {currentStep === 'payment' && activeDeposit && selectedCurrency && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -268,56 +430,62 @@ export default function DepositPage() {
             <Card className="p-8 bg-white/5 backdrop-blur-xl border-white/10">
               <h2 className="text-2xl font-bold text-white mb-2">Send Payment</h2>
               <p className="text-white/70 mb-8">
-                Send exactly the amount below to complete your deposit
+                Send exactly the amount below. The address is unique to this transaction.
               </p>
 
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
-                  <div className="bg-white/10 rounded-lg p-6 mb-6 border border-white/10">
-                    <h3 className="text-lg font-semibold text-white mb-4">Payment Details</h3>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-white/60 text-sm">Amount to Send</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-xl font-bold text-white">
-                            {(getCurrentAmount() / (selectedCrypto.symbol === 'BTC' ? 45000 : selectedCrypto.symbol === 'ETH' ? 2500 : 1)).toFixed(6)} {selectedCrypto.symbol}
-                          </p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => copyToClipboard((getCurrentAmount() / (selectedCrypto.symbol === 'BTC' ? 45000 : selectedCrypto.symbol === 'ETH' ? 2500 : 1)).toFixed(6))}
-                            className="text-white/60 hover:text-white p-1"
-                          >
-                            {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          </Button>
-                        </div>
+                  <div className="bg-white/10 rounded-lg p-6 mb-6 border border-white/10 space-y-4">
+                    <div>
+                      <label className="text-white/60 text-sm">Amount to send</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xl font-bold text-white">
+                          {Number(activeDeposit.pay_amount).toFixed(8)} {activeDeposit.pay_currency}
+                        </p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            copyToClipboard(Number(activeDeposit.pay_amount).toFixed(8), 'amount')
+                          }
+                          className="text-white/60 hover:text-white p-1"
+                        >
+                          {copiedField === 'amount' ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        </Button>
                       </div>
+                      <p className="text-xs text-white/50">
+                        ≈ ${Number(activeDeposit.price_amount).toFixed(2)} {activeDeposit.price_currency}
+                      </p>
+                    </div>
 
-                      <div>
-                        <label className="text-white/60 text-sm">Deposit Address</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-white font-mono text-sm break-all">{depositAddress}</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => copyToClipboard(depositAddress)}
-                            className="text-white/60 hover:text-white p-1 flex-shrink-0"
-                          >
-                            {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          </Button>
-                        </div>
+                    <div>
+                      <label className="text-white/60 text-sm">Deposit address</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-white font-mono text-sm break-all flex-1">
+                          {activeDeposit.pay_address || 'Address will appear shortly'}
+                        </p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            activeDeposit.pay_address &&
+                            copyToClipboard(activeDeposit.pay_address, 'address')
+                          }
+                          className="text-white/60 hover:text-white p-1 flex-shrink-0"
+                        >
+                          {copiedField === 'address' ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        </Button>
                       </div>
+                    </div>
 
-                      <div>
-                        <label className="text-white/60 text-sm">Network</label>
-                        <p className="text-white">{selectedCrypto.network}</p>
-                      </div>
+                    <div>
+                      <label className="text-white/60 text-sm">Payment ID</label>
+                      <p className="text-white font-mono text-xs">{activeDeposit.payment_id}</p>
+                    </div>
 
-                      <div>
-                        <label className="text-white/60 text-sm">Processing Time</label>
-                        <p className="text-white">{selectedCrypto.processingTime}</p>
-                      </div>
+                    <div>
+                      <label className="text-white/60 text-sm">Network</label>
+                      <p className="text-white">{selectedCurrency.network || 'On-chain'}</p>
                     </div>
                   </div>
 
@@ -326,9 +494,9 @@ export default function DepositPage() {
                       <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-yellow-300 font-medium text-sm">Important</p>
-                        <p className="text-yellow-200/80 text-sm mt-1">
-                          Only send {selectedCrypto.symbol} on the {selectedCrypto.network} network. 
-                          Sending other cryptocurrencies or using wrong networks will result in loss of funds.
+                        <p className="text-yellow-200/80 text-sm">
+                          Only send {activeDeposit.pay_currency} on the {selectedCurrency.network || 'specified'} network. 
+                          Sending other assets or using the wrong network will result in loss of funds.
                         </p>
                       </div>
                     </div>
@@ -340,8 +508,16 @@ export default function DepositPage() {
                     <QrCode className="w-48 h-48 text-black" />
                   </div>
                   <p className="text-white/60 text-sm text-center">
-                    Scan QR code with your wallet app
+                    Scan this unique QR code with your wallet app
                   </p>
+                  <div className="mt-6 w-full bg-white/10 rounded-lg p-4 text-sm text-white/70">
+                    <p className="font-semibold text-white mb-2">What happens next?</p>
+                    <ul className="space-y-2 list-disc list-inside">
+                      <li>Payment detected within seconds.</li>
+                      <li>NOWPayments waits for blockchain confirmations.</li>
+                      <li>Once confirmed, funds are mirrored to your virtual balance.</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
 
@@ -365,47 +541,50 @@ export default function DepositPage() {
         )}
 
         {/* Step 4: Confirmation */}
-        {currentStep === 'confirmation' && (
+        {currentStep === 'confirmation' && activeDeposit && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <Card className="p-8 bg-white/10 backdrop-blur-2xl border-white/10 text-center shadow-[0_25px_60px_rgba(15,23,42,0.55)]">
+            <Card className="p-8 bg-white/10 backdrop-blur-2xl border-white/10 text-center shadow-[0_25px_60px_rgba(15,23,42,0.55)] space-y-6">
               <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Clock className="w-8 h-8 text-white" />
               </div>
-              
-              <h2 className="text-2xl font-bold text-white mb-2">Payment Submitted</h2>
-              <p className="text-white/70 mb-8">
-                We're waiting for your payment to be confirmed on the blockchain
-              </p>
 
-              <div className="bg-white/10 rounded-lg p-6 mb-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Transaction Details</h3>
-                <div className="space-y-2 text-left">
-                  <div className="flex justify-between">
-                    <span className="text-white/60">Payment ID:</span>
-                    <span className="text-white font-mono">{paymentId}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">Amount:</span>
-                    <span className="text-white">${getCurrentAmount().toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">Cryptocurrency:</span>
-                    <span className="text-white">{selectedCrypto?.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/60">Status:</span>
-                    <span className="text-yellow-400">Pending Confirmation</span>
-                  </div>
-                </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">Payment in Progress</h2>
+                <p className="text-white/70">
+                  We're waiting for blockchain confirmations. You'll be notified once funds are credited.
+                </p>
               </div>
 
-              <p className="text-white/60 text-sm mb-6">
+              <div className="bg-white/10 rounded-lg p-6 text-left space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-white/60 text-sm">Payment ID</span>
+                  <span className="text-white font-mono text-xs">{activeDeposit.payment_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/60 text-sm">Amount</span>
+                  <span className="text-white font-semibold">
+                    {Number(activeDeposit.pay_amount).toFixed(8)} {activeDeposit.pay_currency}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-white/60 text-sm">Status</span>
+                  <span className="text-yellow-300 font-semibold capitalize">
+                    { (activeDepositStatus || activeDeposit.status).replace(/_/g, ' ') }
+                  </span>
+                </div>
+                <p className="text-xs text-white/50 pt-2 border-t border-white/10">
+                  {statusDescriptions[(activeDepositStatus || activeDeposit.status).toLowerCase()] ||
+                    'Awaiting confirmations'}
+                </p>
+              </div>
+
+              <p className="text-white/60 text-sm">
                 You'll receive an email confirmation once your deposit is processed. 
-                This usually takes {selectedCrypto?.processingTime}.
+                This usually takes {selectedCurrency?.processingTime ?? 'a few minutes'}.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
@@ -417,7 +596,13 @@ export default function DepositPage() {
                 <Button
                   variant="outline"
                   className="flex-1 border-white/20 text-white hover:bg-white/10"
-                  onClick={() => window.open('https://nowpayments.io', '_blank')}
+                  onClick={() =>
+                    window.open(
+                      `https://nowpayments.io/payment/${activeDeposit.payment_id}`,
+                      '_blank',
+                      'noopener',
+                    )
+                  }
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Track Payment
@@ -426,6 +611,51 @@ export default function DepositPage() {
             </Card>
           </motion.div>
         )}
+
+        <Card className="p-6 bg-white/5 border-white/10">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Recent deposit activity</h3>
+              <p className="text-sm text-white/60">
+                Latest payments synced from NOWPayments. Updates every few seconds.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchDepositHistory}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              Refresh
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {latestDeposits.length === 0 && (
+              <div className="text-center text-white/60 py-8 border border-dashed border-white/10 rounded-lg">
+                No deposits yet. Create your first deposit to get started.
+              </div>
+            )}
+            {latestDeposits.map((deposit) => (
+              <div
+                key={deposit.id}
+                className="rounded-xl border border-white/10 bg-black/30 p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3"
+              >
+                <div>
+                  <p className="text-white font-semibold">
+                    ${deposit.amount_usd.toFixed(2)} · {deposit.currency}
+                  </p>
+                  <p className="text-xs text-white/50">{new Date(deposit.created_at).toLocaleString()}</p>
+                  {deposit.nowpayments_payment_id && (
+                    <p className="text-xs text-white/40 mt-1">Payment ID: {deposit.nowpayments_payment_id}</p>
+                  )}
+                </div>
+                <span className="text-sm font-medium text-yellow-300 capitalize">
+                  {deposit.status.replace(/_/g, ' ')}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   )

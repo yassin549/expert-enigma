@@ -26,6 +26,7 @@ import { InvestmentPortfolio } from '@/components/ai-investments/InvestmentPortf
 import { InvestmentAllocationFlow } from '@/components/ai-investments/InvestmentAllocationFlow'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { apiClient } from '@/lib/api-client'
 
 interface InvestmentPlan {
   id: number
@@ -131,29 +132,42 @@ export default function InvestmentsPage() {
 
   const fetchData = async () => {
     try {
-      const plansResponse = await fetch('/api/investments/plans')
-      if (plansResponse.ok) {
-        const plansData = await plansResponse.json()
-        setPlans(plansData)
+      const [plansResult, investmentsResult, statsResult] = await Promise.allSettled([
+        apiClient.get<InvestmentPlan[]>('/api/investments/plans'),
+        apiClient.get<UserInvestment[]>('/api/investments/my-investments'),
+        apiClient.get<InvestmentStats>('/api/investments/stats')
+      ])
+
+      if (plansResult.status === 'fulfilled') {
+        setPlans(plansResult.value)
       }
 
-      const investmentsResponse = await fetch('/api/investments/my-investments', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      })
-      if (investmentsResponse.ok) {
-        const investmentsData = await investmentsResponse.json()
-        setUserInvestments(investmentsData)
+      if (investmentsResult.status === 'fulfilled') {
+        setUserInvestments(investmentsResult.value)
       }
 
-      const statsResponse = await fetch('/api/investments/stats')
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json()
-        setStats(statsData)
+      if (statsResult.status === 'fulfilled') {
+        setStats(statsResult.value)
+      }
+
+      if (
+        plansResult.status === 'rejected' ||
+        investmentsResult.status === 'rejected' ||
+        statsResult.status === 'rejected'
+      ) {
+        throw plansResult.status === 'rejected'
+          ? plansResult.reason
+          : investmentsResult.status === 'rejected'
+          ? investmentsResult.reason
+          : statsResult.reason
       }
     } catch (error) {
       console.error('Failed to fetch investment data:', error)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load investment data. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
@@ -163,30 +177,22 @@ export default function InvestmentsPage() {
     if (!selectedPlan) return
 
     try {
-      const response = await fetch('/api/investments/allocate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify({
-          plan_id: selectedPlan.id,
-          amount: amount
-        })
+      await apiClient.post('/api/investments/allocate', {
+        plan_id: selectedPlan.id,
+        amount
       })
 
-      if (response.ok) {
-        const result = await response.json()
-        toast.success(`Successfully invested ${formatCurrency(amount)} in ${selectedPlan.name}`)
-        setSelectedPlan(null)
-        fetchData()
-        setUserBalance(prev => prev - amount)
-      } else {
-        const error = await response.json()
-        toast.error(error.detail || 'Failed to allocate investment')
-      }
+      toast.success(`Successfully invested ${formatCurrency(amount)} in ${selectedPlan.name}`)
+      setSelectedPlan(null)
+      fetchData()
+      setUserBalance(prev => prev - amount)
     } catch (error) {
-      toast.error('Failed to allocate investment')
+      console.error('Failed to allocate investment:', error)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to allocate investment. Please try again.'
+      )
     }
   }
 

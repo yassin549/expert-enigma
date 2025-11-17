@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { TradingViewChart } from '@/components/charts/TradingViewChart'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { apiClient } from '@/lib/api-client'
 
 interface DashboardStats {
   total_deposited: number
@@ -93,68 +94,41 @@ export default function DashboardPage() {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      if (!token) {
-        console.error('No authentication token found')
-        setError('Please log in to view dashboard')
-        setLoading(false)
-        return
+      const data = await apiClient.get<Record<string, any>>('/api/dashboard/stats')
+
+      const processedData: DashboardStats = {
+        total_deposited: Number(data.total_deposited) || 0,
+        total_deposits_count: Number(data.total_deposits_count) || 0,
+        last_deposit_date: data.last_deposit_date || null,
+        last_deposit_amount: data.last_deposit_amount ? Number(data.last_deposit_amount) : null,
+        total_ai_investments: Number(data.total_ai_investments) || 0,
+        active_ai_plans: Number(data.active_ai_plans) || 0,
+        total_ai_returns: Number(data.total_ai_returns) || 0,
+        total_ai_return_pct: Number(data.total_ai_return_pct) || 0,
+        ai_growth_7d: Number(data.ai_growth_7d) || 0,
+        ai_growth_30d: Number(data.ai_growth_30d) || 0,
+        recent_transactions: data.recent_transactions || [],
+        transaction_count_24h: Number(data.transaction_count_24h) || 0,
+        transaction_volume_24h: Number(data.transaction_volume_24h) || 0,
+        total_pnl: Number(data.total_pnl) || 0,
+        total_return_pct: Number(data.total_return_pct) || 0,
+        win_rate: Number(data.win_rate) || 0,
+        total_trades: Number(data.total_trades) || 0,
+        has_deposits: Boolean(data.has_deposits),
+        can_trade: Boolean(data.can_trade),
+        account_created_at: data.account_created_at || null
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      
-      const response = await fetch(`${apiUrl}/api/dashboard/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        
-        const processedData: DashboardStats = {
-          total_deposited: Number(data.total_deposited) || 0,
-          total_deposits_count: Number(data.total_deposits_count) || 0,
-          last_deposit_date: data.last_deposit_date || null,
-          last_deposit_amount: data.last_deposit_amount ? Number(data.last_deposit_amount) : null,
-          total_ai_investments: Number(data.total_ai_investments) || 0,
-          active_ai_plans: Number(data.active_ai_plans) || 0,
-          total_ai_returns: Number(data.total_ai_returns) || 0,
-          total_ai_return_pct: Number(data.total_ai_return_pct) || 0,
-          ai_growth_7d: Number(data.ai_growth_7d) || 0,
-          ai_growth_30d: Number(data.ai_growth_30d) || 0,
-          recent_transactions: data.recent_transactions || [],
-          transaction_count_24h: Number(data.transaction_count_24h) || 0,
-          transaction_volume_24h: Number(data.transaction_volume_24h) || 0,
-          total_pnl: Number(data.total_pnl) || 0,
-          total_return_pct: Number(data.total_return_pct) || 0,
-          win_rate: Number(data.win_rate) || 0,
-          total_trades: Number(data.total_trades) || 0,
-          has_deposits: Boolean(data.has_deposits),
-          can_trade: Boolean(data.can_trade),
-          account_created_at: data.account_created_at || null
-        }
-        
-        setStats(processedData)
-        setError(null)
-        setLastRefresh(new Date())
-      } else {
-        const errorText = await response.text()
-        console.error('Dashboard API error:', response.status, errorText)
-        
-        if (response.status === 401 || response.status === 403) {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          window.location.href = '/auth/signin'
-          return
-        }
-        
-        setError(`Failed to load dashboard data (${response.status})`)
-      }
+      setStats(processedData)
+      setError(null)
+      setLastRefresh(new Date())
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error)
-      setError('Network error. Please check your connection.')
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load dashboard data. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
@@ -162,24 +136,8 @@ export default function DashboardPage() {
 
   const fetchCryptoPrices = async () => {
     try {
-      const token = localStorage.getItem('access_token')
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      }
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      
-      const response = await fetch(`${apiUrl}/api/dashboard/crypto-prices`, {
-        headers
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setCryptoPrices(data)
-      }
+      const data = await apiClient.get<CryptoPrice[]>('/api/dashboard/crypto-prices')
+      setCryptoPrices(data)
     } catch (error) {
       console.error('Failed to fetch crypto prices:', error)
     }
